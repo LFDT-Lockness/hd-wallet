@@ -175,8 +175,8 @@ impl ops::Deref for ChildIndex {
     type Target = u32;
     fn deref(&self) -> &Self::Target {
         match self {
-            Self::Hardened(i) => &*i,
-            Self::NonHardened(i) => &*i,
+            Self::Hardened(i) => i,
+            Self::NonHardened(i) => i,
         }
     }
 }
@@ -409,7 +409,7 @@ fn calculate_shift<E: Curve>(
             .expect("this should never fail as size of output is fixed");
 
         if let Ok(shift) = Scalar::<E>::from_be_bytes(i_left) {
-            let child_pk = parent_public_key.public_key + Point::generator() * &shift;
+            let child_pk = parent_public_key.public_key + Point::generator() * shift;
             if !child_pk.is_zero() {
                 return DerivedShift {
                     shift,
