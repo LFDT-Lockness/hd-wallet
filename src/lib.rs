@@ -48,7 +48,7 @@
 //! [BIP32]: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![forbid(missing_docs)]
+#![forbid(missing_docs, unsafe_code)]
 
 use core::ops;
 
