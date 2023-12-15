@@ -30,14 +30,10 @@
 //! let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
 //! let master_key_pair = slip10::ExtendedKeyPair::from(master_key);
 //!
-//! let derivation_path = [1 + slip10::H, 10];
-//! let mut derived_key = master_key_pair;
-//! for child_index in derivation_path {
-//!     derived_key = slip10::derive_child_key_pair(
-//!         &derived_key,
-//!         child_index,
-//!     );
-//! }
+//! let child_key_pair = slip10::derive_child_key_pair_with_path(
+//!     &master_key_pair,
+//!     [1 + slip10::H, 10],
+//! );
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
