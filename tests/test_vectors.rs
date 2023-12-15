@@ -339,11 +339,10 @@ fn run_vector<E: Curve + slip_10::SupportedCurve>(v: &TestVector) {
     let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
 
     for derivation in v.derivations {
-        let mut key = master_key_pair.clone();
-
-        for &child_index in derivation.path {
-            key = slip_10::derive_child_key_pair(&key, child_index);
-        }
+        let key = slip_10::derive_child_key_pair_with_path(
+            &master_key_pair,
+            derivation.path.iter().copied(),
+        );
 
         assert_eq!(key.chain_code(), &derivation.expected_chain_code);
         assert_eq!(
