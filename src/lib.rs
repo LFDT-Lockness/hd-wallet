@@ -24,15 +24,15 @@
 //!
 //! Derive a master key from the seed, and then derive a child key m/1<sub>H</sub>/10:
 //! ```rust
-//! use slip10::supported_curves::Secp256k1;
+//! use slip_10::supported_curves::Secp256k1;
 //!
 //! let seed = b"16-64 bytes of high entropy".as_slice();
-//! let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
-//! let master_key_pair = slip10::ExtendedKeyPair::from(master_key);
+//! let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
+//! let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
 //!
-//! let child_key_pair = slip10::derive_child_key_pair_with_path(
+//! let child_key_pair = slip_10::derive_child_key_pair_with_path(
 //!     &master_key_pair,
-//!     [1 + slip10::H, 10],
+//!     [1 + slip_10::H, 10],
 //! );
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
@@ -69,18 +69,18 @@ type HmacSha512 = hmac::Hmac<sha2::Sha512>;
 /// ## Example
 /// Derive a child key with a path m/1<sub>H</sub>
 /// ```rust
-/// use slip10::supported_curves::Secp256k1;
+/// use slip_10::supported_curves::Secp256k1;
 ///
 /// # let seed = b"do not use this seed in prod :)".as_slice();
-/// let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
-/// let master_key_pair = slip10::ExtendedKeyPair::from(master_key);
+/// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
+/// let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
 ///
-/// let hardened_child = slip10::derive_child_key_pair(
+/// let hardened_child = slip_10::derive_child_key_pair(
 ///     &master_key_pair,
-///     1 + slip10::H,
+///     1 + slip_10::H,
 /// );
 /// #
-/// # Ok::<(), slip10::errors::InvalidLength>(())
+/// # Ok::<(), slip_10::errors::InvalidLength>(())
 /// ```
 pub const H: u32 = 1 << 31;
 
@@ -346,15 +346,15 @@ pub fn derive_master_key_with_curve_tag<E: Curve>(
 /// ### Example
 /// Derive child key m/1<sub>H</sub> from master key
 /// ```rust
-/// use slip10::supported_curves::Secp256k1;
+/// use slip_10::supported_curves::Secp256k1;
 ///
 /// # let seed = b"do not use this seed :)".as_slice();
-/// let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
-/// let master_key_pair = slip10::ExtendedKeyPair::from(master_key);
+/// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
+/// let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
 ///
-/// let derived_key = slip10::derive_child_key_pair(
+/// let derived_key = slip_10::derive_child_key_pair(
 ///     &master_key_pair,
-///     1 + slip10::H,
+///     1 + slip_10::H,
 /// );
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -387,14 +387,14 @@ pub fn derive_child_key_pair<E: Curve>(
 /// ### Example
 /// Derive a child key with path m/1/10/1<sub>H</sub>
 /// ```rust
-/// use slip10::supported_curves::Secp256k1;
+/// use slip_10::supported_curves::Secp256k1;
 /// # let seed = b"16-64 bytes of high entropy".as_slice();
-/// let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
-/// let master_key_pair = slip10::ExtendedKeyPair::from(master_key);
+/// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
+/// let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
 ///
-/// let child_key = slip10::derive_child_key_pair_with_path(
+/// let child_key = slip_10::derive_child_key_pair_with_path(
 ///     &master_key_pair,
-///     [1, 10, 1 + slip10::H],
+///     [1, 10, 1 + slip_10::H],
 /// );
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -420,14 +420,14 @@ pub fn derive_child_key_pair_with_path<E: Curve>(
 /// ### Example
 /// Parse a path from the string and derive a child without extra allocations:
 /// ```rust
-/// use slip10::supported_curves::Secp256k1;
+/// use slip_10::supported_curves::Secp256k1;
 /// # let seed = b"16-64 bytes of high entropy".as_slice();
-/// let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
-/// let master_key_pair = slip10::ExtendedKeyPair::from(master_key);
+/// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
+/// let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
 ///
 /// let path = "1/10/2";
 /// let child_indexes = path.split('/').map(str::parse::<u32>);
-/// let child_key = slip10::try_derive_child_key_pair_with_path(
+/// let child_key = slip_10::try_derive_child_key_pair_with_path(
 ///     &master_key_pair,
 ///     child_indexes,
 /// )?;
@@ -449,13 +449,13 @@ pub fn try_derive_child_key_pair_with_path<E: Curve, Err>(
 /// ### Example
 /// Derive a master public key m/1
 /// ```rust
-/// use slip10::supported_curves::Secp256k1;
+/// use slip_10::supported_curves::Secp256k1;
 ///
 /// # let seed = b"do not use this seed :)".as_slice();
-/// let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
-/// let master_public_key = slip10::ExtendedPublicKey::from(&master_key);
+/// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
+/// let master_public_key = slip_10::ExtendedPublicKey::from(&master_key);
 ///
-/// let derived_key = slip10::derive_child_public_key(
+/// let derived_key = slip_10::derive_child_public_key(
 ///     &master_public_key,
 ///     1.try_into()?,
 /// );
@@ -477,12 +477,12 @@ pub fn derive_child_public_key<E: Curve>(
 /// ### Example
 /// Derive a child key with path m/1/10
 /// ```rust
-/// use slip10::supported_curves::Secp256k1;
+/// use slip_10::supported_curves::Secp256k1;
 /// # let seed = b"16-64 bytes of high entropy".as_slice();
-/// let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
-/// let master_public_key = slip10::ExtendedPublicKey::from(&master_key);
+/// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
+/// let master_public_key = slip_10::ExtendedPublicKey::from(&master_key);
 ///
-/// let child_key = slip10::derive_child_public_key_with_path(
+/// let child_key = slip_10::derive_child_public_key_with_path(
 ///     &master_public_key,
 ///     [1.try_into()?, 10.try_into()?],
 /// );
@@ -510,14 +510,14 @@ pub fn derive_child_public_key_with_path<E: Curve>(
 /// ### Example
 /// Parse a path from the string and derive a child without extra allocations:
 /// ```rust
-/// use slip10::supported_curves::Secp256k1;
+/// use slip_10::supported_curves::Secp256k1;
 /// # let seed = b"16-64 bytes of high entropy".as_slice();
-/// let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
-/// let master_public_key = slip10::ExtendedPublicKey::from(&master_key);
+/// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
+/// let master_public_key = slip_10::ExtendedPublicKey::from(&master_key);
 ///
 /// let path = "1/10/2";
 /// let child_indexes = path.split('/').map(str::parse);
-/// let child_key = slip10::try_derive_child_public_key_with_path(
+/// let child_key = slip_10::try_derive_child_public_key_with_path(
 ///     &master_public_key,
 ///     child_indexes,
 /// )?;

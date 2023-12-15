@@ -2,7 +2,7 @@ use generic_ec::Curve;
 use hex_literal::hex;
 
 struct TestVector {
-    curve_type: slip10::CurveType,
+    curve_type: slip_10::CurveType,
     seed: &'static [u8],
     derivations: &'static [Derivation],
 }
@@ -10,7 +10,7 @@ struct TestVector {
 struct Derivation {
     path: &'static [u32],
 
-    expected_chain_code: slip10::ChainCode,
+    expected_chain_code: slip_10::ChainCode,
     expected_secret_key: [u8; 32],
     expected_public_key: [u8; 33],
 }
@@ -21,7 +21,7 @@ const TEST_VECTORS: &[TestVector] = &[
     // Test vector 1 for secp256k1
     TestVector {
         seed: &hex!("000102030405060708090a0b0c0d0e0f"),
-        curve_type: slip10::CurveType::Secp256k1,
+        curve_type: slip_10::CurveType::Secp256k1,
         derivations: &[
             Derivation {
                 path: &[],
@@ -36,7 +36,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + slip10::H],
+                path: &[0 + slip_10::H],
                 expected_chain_code: hex!(
                     "47fdacbd0f1097043b78c63c20c34ef4ed9a111d980047ad16282c7ae6236141"
                 ),
@@ -48,7 +48,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + slip10::H, 1],
+                path: &[0 + slip_10::H, 1],
                 expected_chain_code: hex!(
                     "2a7857631386ba23dacac34180dd1983734e444fdbf774041578e9b6adb37c19"
                 ),
@@ -60,7 +60,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + slip10::H, 1, 2 + slip10::H],
+                path: &[0 + slip_10::H, 1, 2 + slip_10::H],
                 expected_chain_code: hex!(
                     "04466b9cc8e161e966409ca52986c584f07e9dc81f735db683c3ff6ec7b1503f"
                 ),
@@ -72,7 +72,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + slip10::H, 1, 2 + slip10::H, 2],
+                path: &[0 + slip_10::H, 1, 2 + slip_10::H, 2],
                 expected_chain_code: hex!(
                     "cfb71883f01676f587d023cc53a35bc7f88f724b1f8c2892ac1275ac822a3edd"
                 ),
@@ -84,7 +84,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + slip10::H, 1, 2 + slip10::H, 2, 1000000000],
+                path: &[0 + slip_10::H, 1, 2 + slip_10::H, 2, 1000000000],
                 expected_chain_code: hex!(
                     "c783e67b921d2beb8f6b389cc646d7263b4145701dadd2161548a8b078e65e9e"
                 ),
@@ -99,7 +99,7 @@ const TEST_VECTORS: &[TestVector] = &[
     },
     // Test vector 1 for nist256p1
     TestVector {
-        curve_type: slip10::CurveType::Secp256r1,
+        curve_type: slip_10::CurveType::Secp256r1,
         seed: &hex!("000102030405060708090a0b0c0d0e0f"),
         derivations: &[
             Derivation {
@@ -115,7 +115,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + slip10::H],
+                path: &[0 + slip_10::H],
                 expected_chain_code: hex!(
                     "3460cea53e6a6bb5fb391eeef3237ffd8724bf0a40e94943c98b83825342ee11"
                 ),
@@ -127,7 +127,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + slip10::H, 1],
+                path: &[0 + slip_10::H, 1],
                 expected_chain_code: hex!(
                     "4187afff1aafa8445010097fb99d23aee9f599450c7bd140b6826ac22ba21d0c"
                 ),
@@ -139,7 +139,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + slip10::H, 1, 2 + slip10::H],
+                path: &[0 + slip_10::H, 1, 2 + slip_10::H],
                 expected_chain_code: hex!(
                     "98c7514f562e64e74170cc3cf304ee1ce54d6b6da4f880f313e8204c2a185318"
                 ),
@@ -151,7 +151,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + slip10::H, 1, 2 + slip10::H, 2],
+                path: &[0 + slip_10::H, 1, 2 + slip_10::H, 2],
                 expected_chain_code: hex!(
                     "ba96f776a5c3907d7fd48bde5620ee374d4acfd540378476019eab70790c63a0"
                 ),
@@ -163,7 +163,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + slip10::H, 1, 2 + slip10::H, 2, 1000000000],
+                path: &[0 + slip_10::H, 1, 2 + slip_10::H, 2, 1000000000],
                 expected_chain_code: hex!(
                     "b9b7b82d326bb9cb5b5b121066feea4eb93d5241103c9e7a18aad40f1dde8059"
                 ),
@@ -178,7 +178,7 @@ const TEST_VECTORS: &[TestVector] = &[
     },
     // Test vector 2 for secp256k1
     TestVector {
-        curve_type: slip10::CurveType::Secp256k1,
+        curve_type: slip_10::CurveType::Secp256k1,
         seed: &hex!(
             "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a2
              9f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
@@ -209,7 +209,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0, 2147483647 + slip10::H],
+                path: &[0, 2147483647 + slip_10::H],
                 expected_chain_code: hex!(
                     "be17a268474a6bb9c61e1d720cf6215e2a88c5406c4aee7b38547f585c9a37d9"
                 ),
@@ -221,7 +221,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0, 2147483647 + slip10::H, 1],
+                path: &[0, 2147483647 + slip_10::H, 1],
                 expected_chain_code: hex!(
                     "f366f48f1ea9f2d1d3fe958c95ca84ea18e4c4ddb9366c336c927eb246fb38cb"
                 ),
@@ -233,7 +233,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0, 2147483647 + slip10::H, 1, 2147483646 + slip10::H],
+                path: &[0, 2147483647 + slip_10::H, 1, 2147483646 + slip_10::H],
                 expected_chain_code: hex!(
                     "637807030d55d01f9a0cb3a7839515d796bd07706386a6eddf06cc29a65a0e29"
                 ),
@@ -245,7 +245,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0, 2147483647 + slip10::H, 1, 2147483646 + slip10::H, 2],
+                path: &[0, 2147483647 + slip_10::H, 1, 2147483646 + slip_10::H, 2],
                 expected_chain_code: hex!(
                     "9452b549be8cea3ecb7a84bec10dcfd94afe4d129ebfd3b3cb58eedf394ed271"
                 ),
@@ -260,7 +260,7 @@ const TEST_VECTORS: &[TestVector] = &[
     },
     // Test derivation retry for nist256p1
     TestVector {
-        curve_type: slip10::CurveType::Secp256r1,
+        curve_type: slip_10::CurveType::Secp256r1,
         seed: &hex!("000102030405060708090a0b0c0d0e0f"),
         derivations: &[
             Derivation {
@@ -276,7 +276,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[28578 + slip10::H],
+                path: &[28578 + slip_10::H],
                 expected_chain_code: hex!(
                     "e94c8ebe30c2250a14713212f6449b20f3329105ea15b652ca5bdfc68f6c65c2"
                 ),
@@ -288,7 +288,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[28578 + slip10::H, 33941],
+                path: &[28578 + slip_10::H, 33941],
                 expected_chain_code: hex!(
                     "9e87fe95031f14736774cd82f25fd885065cb7c358c1edf813c72af535e83071"
                 ),
@@ -303,7 +303,7 @@ const TEST_VECTORS: &[TestVector] = &[
     },
     // Test seed retry for nist256p1
     TestVector {
-        curve_type: slip10::CurveType::Secp256r1,
+        curve_type: slip_10::CurveType::Secp256r1,
         seed: &hex!("a7305bc8df8d0951f0cb224c0e95d7707cbdf2c6ce7e8d481fec69c7ff5e9446"),
         derivations: &[Derivation {
             path: &[],
@@ -324,25 +324,25 @@ const TEST_VECTORS: &[TestVector] = &[
 fn test_vectors() {
     for vector in TEST_VECTORS {
         match vector.curve_type {
-            slip10::CurveType::Secp256k1 => {
-                run_vector::<slip10::supported_curves::Secp256k1>(vector)
+            slip_10::CurveType::Secp256k1 => {
+                run_vector::<slip_10::supported_curves::Secp256k1>(vector)
             }
-            slip10::CurveType::Secp256r1 => {
-                run_vector::<slip10::supported_curves::Secp256r1>(vector)
+            slip_10::CurveType::Secp256r1 => {
+                run_vector::<slip_10::supported_curves::Secp256r1>(vector)
             }
         }
     }
 }
 
-fn run_vector<E: Curve + slip10::SupportedCurve>(v: &TestVector) {
-    let master_key = slip10::derive_master_key::<E>(&v.seed).unwrap();
-    let master_key_pair = slip10::ExtendedKeyPair::from(master_key);
+fn run_vector<E: Curve + slip_10::SupportedCurve>(v: &TestVector) {
+    let master_key = slip_10::derive_master_key::<E>(&v.seed).unwrap();
+    let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
 
     for derivation in v.derivations {
         let mut key = master_key_pair.clone();
 
         for &child_index in derivation.path {
-            key = slip10::derive_child_key_pair(&key, child_index);
+            key = slip_10::derive_child_key_pair(&key, child_index);
         }
 
         assert_eq!(key.chain_code(), &derivation.expected_chain_code);

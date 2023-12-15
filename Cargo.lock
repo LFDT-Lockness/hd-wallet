@@ -434,7 +434,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "slip10"
+name = "slip-10"
 version = "0.1.0"
 dependencies = [
  "generic-array",
