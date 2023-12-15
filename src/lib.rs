@@ -1,7 +1,7 @@
 //! SLIP-10: Deterministic key generation
 //!
-//! [SLIP10] is a specification for implementing HD wallets. It aims at supporting many
-//! curves while being compatible with [BIP32].
+//! [SLIP10][slip10-spec] is a specification for implementing HD wallets. It aims at supporting many
+//! curves while being compatible with [BIP32][bip32-spec].
 //!
 //! The implementation is based on [generic-ec](generic_ec) library that provides generic
 //! elliptic curve arithmetic. The crate is `no_std` and `no_alloc` friendly.
@@ -37,8 +37,8 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
-//! [SLIP10]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
-//! [BIP32]: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+//! [slip10-spec]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
+//! [bip32-spec]: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![forbid(missing_docs, unsafe_code)]
