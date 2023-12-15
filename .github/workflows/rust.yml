@@ -9,7 +9,7 @@ env:
   CARGO_NET_GIT_FETCH_WITH_CLI: true
 
 jobs:
-  build-and-test:
+  build-no-features:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -18,9 +18,7 @@ jobs:
         cache-on-failure: "true"
     - name: Build
       run: cargo build 
-    - name: Run tests
-      run: cargo test --lib --tests
-  build-all-features:
+  build-and-test-all-features:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -29,6 +27,8 @@ jobs:
         cache-on-failure: "true"
     - name: Build
       run: cargo build --all-features
+    - name: Run tests
+      run: cargo test --all-features --lib --tests
   doctest:
     runs-on: ubuntu-latest
     steps:
