@@ -204,6 +204,30 @@ impl TryFrom<u32> for NonHardenedIndex {
         }
     }
 }
+impl core::str::FromStr for ChildIndex {
+    type Err = core::num::ParseIntError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.parse::<u32>().map(Into::into)
+    }
+}
+impl core::str::FromStr for HardenedIndex {
+    type Err = errors::ParseChildIndexError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let index = s
+            .parse::<u32>()
+            .map_err(errors::ParseChildIndexError::ParseInt)?;
+        HardenedIndex::try_from(index).map_err(errors::ParseChildIndexError::IndexNotInRange)
+    }
+}
+impl core::str::FromStr for NonHardenedIndex {
+    type Err = errors::ParseChildIndexError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let index = s
+            .parse::<u32>()
+            .map_err(errors::ParseChildIndexError::ParseInt)?;
+        NonHardenedIndex::try_from(index).map_err(errors::ParseChildIndexError::IndexNotInRange)
+    }
+}
 
 impl<E: Curve> From<&ExtendedSecretKey<E>> for ExtendedPublicKey<E> {
     fn from(sk: &ExtendedSecretKey<E>) -> Self {
@@ -358,6 +382,72 @@ pub fn derive_child_key_pair<E: Curve>(
     }
 }
 
+/// Derives a child key pair with specified derivation path from parent key pair
+///
+/// Derivation path is an iterator that yields child indexes.
+///
+/// If derivation path is empty, `parent_key` is returned
+///
+/// ### Example
+/// Derive a child key with path m/1/10/1<sub>H</sub>
+/// ```rust
+/// use slip10::supported_curves::Secp256k1;
+/// # let seed = b"16-64 bytes of high entropy".as_slice();
+/// let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
+/// let master_key_pair = slip10::ExtendedKeyPair::from(master_key);
+///
+/// let child_key = slip10::derive_child_key_pair_with_path(
+///     &master_key_pair,
+///     [1, 10, 1 + slip10::H],
+/// );
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub fn derive_child_key_pair_with_path<E: Curve>(
+    parent_key: &ExtendedKeyPair<E>,
+    path: impl IntoIterator<Item = impl Into<ChildIndex>>,
+) -> ExtendedKeyPair<E> {
+    let result = try_derive_child_key_pair_with_path(
+        parent_key,
+        path.into_iter().map(Ok::<_, core::convert::Infallible>),
+    );
+    match result {
+        Ok(key) => key,
+        Err(err) => match err {},
+    }
+}
+
+/// Derives a child key pair with specified derivation path from parent key pair
+///
+/// Derivation path is a fallible iterator that yields child indexes. If iterator
+/// yields an error, it's propagated to the caller.
+///
+/// ### Example
+/// Parse a path from the string and derive a child without extra allocations:
+/// ```rust
+/// use slip10::supported_curves::Secp256k1;
+/// # let seed = b"16-64 bytes of high entropy".as_slice();
+/// let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
+/// let master_key_pair = slip10::ExtendedKeyPair::from(master_key);
+///
+/// let path = "1/10/2";
+/// let child_indexes = path.split('/').map(str::parse::<u32>);
+/// let child_key = slip10::try_derive_child_key_pair_with_path(
+///     &master_key_pair,
+///     child_indexes,
+/// )?;
+/// # Ok::<_, Box<dyn std::error::Error>>(())
+/// ```
+pub fn try_derive_child_key_pair_with_path<E: Curve, Err>(
+    parent_key: &ExtendedKeyPair<E>,
+    path: impl IntoIterator<Item = Result<impl Into<ChildIndex>, Err>>,
+) -> Result<ExtendedKeyPair<E>, Err> {
+    let mut derived_key = parent_key.clone();
+    for child_index in path {
+        derived_key = derive_child_key_pair(&derived_key, child_index?);
+    }
+    Ok(derived_key)
+}
+
 /// Derives child extended public key from parent extended public key
 ///
 /// ### Example
@@ -380,6 +470,72 @@ pub fn derive_child_public_key<E: Curve>(
     child_index: NonHardenedIndex,
 ) -> ExtendedPublicKey<E> {
     derive_public_shift(parent_public_key, child_index).child_public_key
+}
+
+/// Derives a child public key with specified derivation path
+///
+/// Derivation path is an iterator that yields child indexes.
+///
+/// If derivation path is empty, `parent_public_key` is returned
+///
+/// ### Example
+/// Derive a child key with path m/1/10
+/// ```rust
+/// use slip10::supported_curves::Secp256k1;
+/// # let seed = b"16-64 bytes of high entropy".as_slice();
+/// let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
+/// let master_public_key = slip10::ExtendedPublicKey::from(&master_key);
+///
+/// let child_key = slip10::derive_child_public_key_with_path(
+///     &master_public_key,
+///     [1.try_into()?, 10.try_into()?],
+/// );
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub fn derive_child_public_key_with_path<E: Curve>(
+    parent_public_key: &ExtendedPublicKey<E>,
+    path: impl IntoIterator<Item = NonHardenedIndex>,
+) -> ExtendedPublicKey<E> {
+    let result = try_derive_child_public_key_with_path(
+        parent_public_key,
+        path.into_iter().map(Ok::<_, core::convert::Infallible>),
+    );
+    match result {
+        Ok(key) => key,
+        Err(err) => match err {},
+    }
+}
+
+/// Derives a child public key with specified derivation path
+///
+/// Derivation path is a fallible iterator that yields child indexes. If iterator
+/// yields an error, it's propagated to the caller.
+///
+/// ### Example
+/// Parse a path from the string and derive a child without extra allocations:
+/// ```rust
+/// use slip10::supported_curves::Secp256k1;
+/// # let seed = b"16-64 bytes of high entropy".as_slice();
+/// let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
+/// let master_public_key = slip10::ExtendedPublicKey::from(&master_key);
+///
+/// let path = "1/10/2";
+/// let child_indexes = path.split('/').map(str::parse);
+/// let child_key = slip10::try_derive_child_public_key_with_path(
+///     &master_public_key,
+///     child_indexes,
+/// )?;
+/// # Ok::<_, Box<dyn std::error::Error>>(())
+/// ```
+pub fn try_derive_child_public_key_with_path<E: Curve, Err>(
+    parent_public_key: &ExtendedPublicKey<E>,
+    path: impl IntoIterator<Item = Result<NonHardenedIndex, Err>>,
+) -> Result<ExtendedPublicKey<E>, Err> {
+    let mut derived_key = parent_public_key.clone();
+    for child_index in path {
+        derived_key = derive_child_public_key(&derived_key, child_index?);
+    }
+    Ok(derived_key)
 }
 
 /// Derive a shift for hardened child
