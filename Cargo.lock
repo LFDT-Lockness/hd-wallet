@@ -437,6 +437,7 @@ dependencies = [
 name = "slip10"
 version = "0.1.0"
 dependencies = [
+ "generic-array",
  "generic-ec",
  "hex-literal",
  "hmac",

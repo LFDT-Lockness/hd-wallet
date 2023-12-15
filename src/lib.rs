@@ -52,6 +52,10 @@
 
 use core::ops;
 
+use generic_array::{
+    typenum::{U32, U64},
+    GenericArray,
+};
 use generic_ec::{Curve, Point, Scalar, SecretScalar};
 use hmac::Mac as _;
 
@@ -278,16 +282,13 @@ pub fn derive_master_key<E: Curve>(
     let mut i = hmac.clone().chain_update(seed).finalize().into_bytes();
 
     loop {
-        let i_left = &i[..32];
-        let i_right: [u8; 32] = i[32..]
-            .try_into()
-            .expect("this should never fail as size of output is fixed");
+        let (i_left, i_right) = split_into_two_halfes(&i);
 
         if let Ok(mut sk) = Scalar::<E>::from_be_bytes(i_left) {
             if !bool::from(subtle::ConstantTimeEq::ct_eq(&sk, &Scalar::zero())) {
                 return Ok(ExtendedSecretKey {
                     secret_key: SecretScalar::new(&mut sk),
-                    chain_code: i_right,
+                    chain_code: (*i_right).into(),
                 });
             }
         }
@@ -403,10 +404,7 @@ fn calculate_shift<E: Curve>(
     mut i: hmac::digest::Output<HmacSha512>,
 ) -> DerivedShift<E> {
     loop {
-        let i_left = &i[..32];
-        let i_right: [u8; 32] = i[32..]
-            .try_into()
-            .expect("this should never fail as size of output is fixed");
+        let (i_left, i_right) = split_into_two_halfes(&i);
 
         if let Ok(shift) = Scalar::<E>::from_be_bytes(i_left) {
             let child_pk = parent_public_key.public_key + Point::generator() * shift;
@@ -415,7 +413,7 @@ fn calculate_shift<E: Curve>(
                     shift,
                     child_public_key: ExtendedPublicKey {
                         public_key: child_pk,
-                        chain_code: i_right,
+                        chain_code: (*i_right).into(),
                     },
                 };
             }
@@ -429,4 +427,11 @@ fn calculate_shift<E: Curve>(
             .finalize()
             .into_bytes()
     }
+}
+
+/// Splits array `I` of 64 bytes into two arrays `I_L = I[..32]` and `I_R = I[32..]`
+fn split_into_two_halfes(
+    i: &GenericArray<u8, U64>,
+) -> (&GenericArray<u8, U32>, &GenericArray<u8, U32>) {
+    generic_array::sequence::Split::split(i)
 }
