@@ -531,7 +531,7 @@ pub fn try_derive_child_public_key_with_path<E: Curve, Err>(
     parent_public_key: &ExtendedPublicKey<E>,
     path: impl IntoIterator<Item = Result<NonHardenedIndex, Err>>,
 ) -> Result<ExtendedPublicKey<E>, Err> {
-    let mut derived_key = parent_public_key.clone();
+    let mut derived_key = *parent_public_key;
     for child_index in path {
         derived_key = derive_child_public_key(&derived_key, child_index?);
     }
