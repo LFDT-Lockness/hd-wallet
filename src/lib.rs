@@ -27,10 +27,7 @@
 //! use slip10::supported_curves::Secp256k1;
 //!
 //! let seed = b"16-64 bytes of high entropy".as_slice();
-//! let master_key = slip10::derive_master_key::<Secp256k1>(
-//!     slip10::CurveType::Secp256k1,
-//!     seed,
-//! )?;
+//! let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
 //! let master_key_pair = slip10::ExtendedKeyPair::from(master_key);
 //!
 //! let derivation_path = [1 + slip10::H, 10];
@@ -79,10 +76,7 @@ type HmacSha512 = hmac::Hmac<sha2::Sha512>;
 /// use slip10::supported_curves::Secp256k1;
 ///
 /// # let seed = b"do not use this seed in prod :)".as_slice();
-/// let master_key = slip10::derive_master_key::<Secp256k1>(
-///     slip10::CurveType::Secp256k1,
-///     seed,
-/// )?;
+/// let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
 /// let master_key_pair = slip10::ExtendedKeyPair::from(master_key);
 ///
 /// let hardened_child = slip10::derive_child_key_pair(
@@ -335,10 +329,7 @@ pub fn derive_master_key_with_curve_tag<E: Curve>(
 /// use slip10::supported_curves::Secp256k1;
 ///
 /// # let seed = b"do not use this seed :)".as_slice();
-/// let master_key = slip10::derive_master_key::<Secp256k1>(
-///     slip10::CurveType::Secp256k1,
-///     seed,
-/// )?;
+/// let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
 /// let master_key_pair = slip10::ExtendedKeyPair::from(master_key);
 ///
 /// let derived_key = slip10::derive_child_key_pair(
@@ -375,10 +366,7 @@ pub fn derive_child_key_pair<E: Curve>(
 /// use slip10::supported_curves::Secp256k1;
 ///
 /// # let seed = b"do not use this seed :)".as_slice();
-/// let master_key = slip10::derive_master_key::<Secp256k1>(
-///     slip10::CurveType::Secp256k1,
-///     seed,
-/// )?;
+/// let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
 /// let master_public_key = slip10::ExtendedPublicKey::from(&master_key);
 ///
 /// let derived_key = slip10::derive_child_public_key(
