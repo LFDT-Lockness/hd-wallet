@@ -334,8 +334,8 @@ fn test_vectors() {
     }
 }
 
-fn run_vector<E: Curve>(v: &TestVector) {
-    let master_key = slip10::derive_master_key::<E>(v.curve_type, &v.seed).unwrap();
+fn run_vector<E: Curve + slip10::SupportedCurve>(v: &TestVector) {
+    let master_key = slip10::derive_master_key::<E>(&v.seed).unwrap();
     let master_key_pair = slip10::ExtendedKeyPair::from(master_key);
 
     for derivation in v.derivations {

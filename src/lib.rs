@@ -247,6 +247,24 @@ impl<E: Curve> ExtendedKeyPair<E> {
     }
 }
 
+/// Marker for a curve supported by SLIP10 specs and this library
+///
+/// Only implement this trait for the curves that are supported by SLIP10 specs.
+/// Curves provided by the crate out-of-box in [supported_curves] module already
+/// implement this trait.
+pub trait SupportedCurve {
+    /// Specifies which curve it is
+    const CURVE_TYPE: CurveType;
+}
+#[cfg(feature = "curve-secp256k1")]
+impl SupportedCurve for supported_curves::Secp256k1 {
+    const CURVE_TYPE: CurveType = CurveType::Secp256k1;
+}
+#[cfg(feature = "curve-secp256r1")]
+impl SupportedCurve for supported_curves::Secp256r1 {
+    const CURVE_TYPE: CurveType = CurveType::Secp256r1;
+}
+
 /// Curves supported by SLIP-10 spec
 ///
 /// It's either secp256k1 or secp256r1. Note that SLIP-10 also supports ed25519 curve, but this library
@@ -264,20 +282,32 @@ pub enum CurveType {
 /// Derives a master key from the seed
 ///
 /// Seed must be 16-64 bytes long, otherwise an error is returned
-pub fn derive_master_key<E: Curve>(
-    curve_type: CurveType,
+pub fn derive_master_key<E: Curve + SupportedCurve>(
+    seed: &[u8],
+) -> Result<ExtendedSecretKey<E>, errors::InvalidLength> {
+    let curve_tag = match E::CURVE_TYPE {
+        CurveType::Secp256k1 => "Bitcoin seed",
+        CurveType::Secp256r1 => "Nist256p1 seed",
+    };
+    derive_master_key_with_curve_tag(curve_tag.as_bytes(), seed)
+}
+
+/// Derives a master key from the seed and the curve tag as defined in SLIP10
+///
+/// It's preferred to use [derive_master_key] instead, as it automatically infers
+/// the curve tag for supported curves. The curve tag is not validated by the function,
+/// it's caller's responsibility to make sure that it complies with SLIP10.
+///
+/// Seed must be 16-64 bytes long, otherwise an error is returned
+pub fn derive_master_key_with_curve_tag<E: Curve>(
+    curve_tag: &[u8],
     seed: &[u8],
 ) -> Result<ExtendedSecretKey<E>, errors::InvalidLength> {
     if !(16 <= seed.len() && seed.len() <= 64) {
         return Err(errors::InvalidLength);
     }
 
-    let curve = match curve_type {
-        CurveType::Secp256k1 => "Bitcoin seed",
-        CurveType::Secp256r1 => "Nist256p1 seed",
-    };
-
-    let hmac = HmacSha512::new_from_slice(curve.as_bytes())
+    let hmac = HmacSha512::new_from_slice(curve_tag)
         .expect("this never fails: hmac can handle keys of any size");
     let mut i = hmac.clone().chain_update(seed).finalize().into_bytes();
 
