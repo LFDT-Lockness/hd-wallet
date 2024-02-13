@@ -137,11 +137,6 @@ pub struct ExtendedSecretKey<E: Curve> {
 
 /// Pair of extended secret and public keys
 #[derive(Clone, Debug)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Serialize, serde::Deserialize),
-    serde(bound = "")
-)]
 pub struct ExtendedKeyPair<E: Curve> {
     public_key: ExtendedPublicKey<E>,
     secret_key: ExtendedSecretKey<E>,
@@ -302,6 +297,27 @@ impl<E: Curve> ExtendedKeyPair<E> {
     /// Returns extended secret key
     pub fn secret_key(&self) -> &ExtendedSecretKey<E> {
         &self.secret_key
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<E: Curve> serde::Serialize for ExtendedKeyPair<E> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.secret_key.serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, E: Curve> serde::Deserialize<'de> for ExtendedKeyPair<E> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let secret_key = ExtendedSecretKey::<E>::deserialize(deserializer)?;
+        Ok(secret_key.into())
     }
 }
 
