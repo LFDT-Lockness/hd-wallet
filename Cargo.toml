@@ -13,6 +13,8 @@ sha2 = { version = "0.10", default-features = false }
 subtle = { version = "2", default-features = false }
 generic-array = "0.14"
 
+serde = { version = "1", default-features = false, features = ["derive"], optional = true }
+
 [dev-dependencies]
 hex-literal = "0.4"
 
@@ -21,6 +23,7 @@ std = []
 curve-secp256k1 = ["generic-ec/curve-secp256k1"]
 curve-secp256r1 = ["generic-ec/curve-secp256r1"]
 all-curves = ["curve-secp256k1", "curve-secp256r1"]
+serde = ["dep:serde", "generic-ec/serde"]
 
 [[test]]
 name = "test_vectors"

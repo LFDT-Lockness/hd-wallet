@@ -86,6 +86,8 @@ pub const H: u32 = 1 << 31;
 
 /// Child index, whether hardened or not
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize), serde(into = "u32"))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(from = "u32"))]
 pub enum ChildIndex {
     /// Hardened index
     Hardened(HardenedIndex),
@@ -95,14 +97,23 @@ pub enum ChildIndex {
 
 /// Child index in range $2^{31} \le i < 2^{32}$ corresponing to a hardened wallet
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize), serde(into = "u32"))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(try_from = "u32"))]
 pub struct HardenedIndex(u32);
 
 /// Child index in range $0 \le i < 2^{31}$ corresponing to a non-hardened wallet
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize), serde(into = "u32"))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(try_from = "u32"))]
 pub struct NonHardenedIndex(u32);
 
 /// Extended public key
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(bound = "")
+)]
 pub struct ExtendedPublicKey<E: Curve> {
     /// The public key that can be used for signature verification
     pub public_key: Point<E>,
@@ -112,6 +123,11 @@ pub struct ExtendedPublicKey<E: Curve> {
 
 /// Extended secret key
 #[derive(Clone, Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(bound = "")
+)]
 pub struct ExtendedSecretKey<E: Curve> {
     /// The secret key that can be used for signing
     pub secret_key: SecretScalar<E>,
@@ -131,6 +147,11 @@ pub struct ExtendedKeyPair<E: Curve> {
 /// It contains an already derived child public key as it needs to be derived
 /// in process of calculating the shift value
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(bound = "")
+)]
 pub struct DerivedShift<E: Curve> {
     /// Derived shift
     pub shift: Scalar<E>,
@@ -200,6 +221,24 @@ impl TryFrom<u32> for NonHardenedIndex {
         }
     }
 }
+impl From<ChildIndex> for u32 {
+    fn from(value: ChildIndex) -> Self {
+        match value {
+            ChildIndex::Hardened(v) => v.0,
+            ChildIndex::NonHardened(v) => v.0,
+        }
+    }
+}
+impl From<HardenedIndex> for u32 {
+    fn from(value: HardenedIndex) -> Self {
+        value.0
+    }
+}
+impl From<NonHardenedIndex> for u32 {
+    fn from(value: NonHardenedIndex) -> Self {
+        value.0
+    }
+}
 impl core::str::FromStr for ChildIndex {
     type Err = core::num::ParseIntError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -258,6 +297,27 @@ impl<E: Curve> ExtendedKeyPair<E> {
     /// Returns extended secret key
     pub fn secret_key(&self) -> &ExtendedSecretKey<E> {
         &self.secret_key
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<E: Curve> serde::Serialize for ExtendedKeyPair<E> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.secret_key.serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, E: Curve> serde::Deserialize<'de> for ExtendedKeyPair<E> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let secret_key = ExtendedSecretKey::<E>::deserialize(deserializer)?;
+        Ok(secret_key.into())
     }
 }
 
