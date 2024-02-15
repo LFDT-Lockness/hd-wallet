@@ -1,6 +1,6 @@
 on:
   push:
-    tags:        
+    tags:
       - 'v*'
   workflow_dispatch:
 
@@ -11,7 +11,7 @@ env:
   CARGO_NET_GIT_FETCH_WITH_CLI: true
 
 jobs:
-  publish-round-based:
+  publish-slip-10:
     name: Publish crate
     environment: crates.io
     runs-on: ubuntu-latest
