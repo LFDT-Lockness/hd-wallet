@@ -218,13 +218,12 @@ dependencies = [
 
 [[package]]
 name = "generic-ec"
-version = "0.1.2"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81960ce6c780f5a63f6ab4e94b3b34212f839ce7e7768b953413e4ee3c4d1438"
+checksum = "4f315ffeaae6a05691c5a27028b4ae960d3a430e406d0109ff8502e2f84ae97b"
 dependencies = [
  "generic-ec-core",
  "generic-ec-curves",
- "getrandom",
  "hex",
  "phantom-type",
  "rand_core",
@@ -534,7 +533,7 @@ dependencies = [
 
 [[package]]
 name = "slip-10"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "generic-array",
  "generic-ec",
