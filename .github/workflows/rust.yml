@@ -62,3 +62,13 @@ jobs:
         cache-on-failure: "true"
     - name: Run clippy
       run: cargo clippy -- -D clippy::all
+  dry-publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: "true"
+    - name: Run dry publish
+      run: cargo publish --dry-run
+    
