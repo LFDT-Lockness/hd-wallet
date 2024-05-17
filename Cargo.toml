@@ -1,6 +1,6 @@
 [package]
 name = "slip-10"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "SLIP10 implementation in Rust"
@@ -9,7 +9,7 @@ repository = "https://github.com/dfns/slip-10"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-generic-ec = { version = "0.2", default-features = false }
+generic-ec = { version = "0.3", default-features = false }
 
 hmac = { version = "0.12", default-features = false }
 sha2 = { version = "0.10", default-features = false }
