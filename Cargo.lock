@@ -194,8 +194,8 @@ dependencies = [
 
 [[package]]
 name = "generic-ec"
-version = "0.4.0-rc3"
-source = "git+https://github.com/dfns/generic-ec?branch=update-udigest#f073395cbe53411ee1ddf9ef40a1933e96c41804"
+version = "0.4.0-rc4"
+source = "git+https://github.com/dfns/generic-ec?branch=update-udigest#8fbc75205c10dd9677fb67cf6eea67c6b44d836e"
 dependencies = [
  "generic-ec-core",
  "generic-ec-curves",
@@ -211,7 +211,7 @@ dependencies = [
 [[package]]
 name = "generic-ec-core"
 version = "0.2.0"
-source = "git+https://github.com/dfns/generic-ec?branch=update-udigest#f073395cbe53411ee1ddf9ef40a1933e96c41804"
+source = "git+https://github.com/dfns/generic-ec?branch=update-udigest#8fbc75205c10dd9677fb67cf6eea67c6b44d836e"
 dependencies = [
  "generic-array",
  "rand_core",
@@ -223,7 +223,7 @@ dependencies = [
 [[package]]
 name = "generic-ec-curves"
 version = "0.2.1"
-source = "git+https://github.com/dfns/generic-ec?branch=update-udigest#f073395cbe53411ee1ddf9ef40a1933e96c41804"
+source = "git+https://github.com/dfns/generic-ec?branch=update-udigest#8fbc75205c10dd9677fb67cf6eea67c6b44d836e"
 dependencies = [
  "elliptic-curve",
  "generic-ec-core",
@@ -439,7 +439,7 @@ dependencies = [
 
 [[package]]
 name = "slip-10"
-version = "0.4.0-rc3"
+version = "0.4.0-rc4"
 dependencies = [
  "generic-array",
  "generic-ec",
