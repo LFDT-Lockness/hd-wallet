@@ -62,7 +62,8 @@ pub use generic_ec::curves as supported_curves;
 pub mod errors;
 
 type HmacSha512 = hmac::Hmac<sha2::Sha512>;
-/// Beggining of hardened child indexes
+
+/// Beginning of hardened child indexes
 ///
 /// $H = 2^{31}$ defines the range of hardened indexes. All indexes $i$ such that $H \le i$ are hardened.
 ///
@@ -95,13 +96,13 @@ pub enum ChildIndex {
     NonHardened(NonHardenedIndex),
 }
 
-/// Child index in range $2^{31} \le i < 2^{32}$ corresponing to a hardened wallet
+/// Child index in range $2^{31} \le i < 2^{32}$ corresponding to a hardened wallet
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize), serde(into = "u32"))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(try_from = "u32"))]
 pub struct HardenedIndex(u32);
 
-/// Child index in range $0 \le i < 2^{31}$ corresponing to a non-hardened wallet
+/// Child index in range $0 \le i < 2^{31}$ corresponding to a non-hardened wallet
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize), serde(into = "u32"))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(try_from = "u32"))]
@@ -386,7 +387,7 @@ pub fn derive_master_key_with_curve_tag<E: Curve>(
     let mut i = hmac.clone().chain_update(seed).finalize().into_bytes();
 
     loop {
-        let (i_left, i_right) = split_into_two_halfes(&i);
+        let (i_left, i_right) = split_into_two_halves(&i);
 
         if let Ok(mut sk) = Scalar::<E>::from_be_bytes(i_left) {
             if !bool::from(subtle::ConstantTimeEq::ct_eq(&sk, &Scalar::zero())) {
@@ -401,266 +402,287 @@ pub fn derive_master_key_with_curve_tag<E: Curve>(
     }
 }
 
-/// Derives child key pair (extended secret key + public key) from parent key pair
-///
-/// ### Example
-/// Derive child key m/1<sub>H</sub> from master key
-/// ```rust
-/// use slip_10::supported_curves::Secp256k1;
-///
-/// # let seed = b"do not use this seed :)".as_slice();
-/// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
-/// let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
-///
-/// let derived_key = slip_10::derive_child_key_pair(
-///     &master_key_pair,
-///     1 + slip_10::H,
-/// );
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
-pub fn derive_child_key_pair<E: Curve>(
-    parent_key: &ExtendedKeyPair<E>,
-    child_index: impl Into<ChildIndex>,
-) -> ExtendedKeyPair<E> {
-    let child_index = child_index.into();
-    let shift = match child_index {
-        ChildIndex::Hardened(i) => derive_hardened_shift(parent_key, i),
-        ChildIndex::NonHardened(i) => derive_public_shift(&parent_key.public_key, i),
-    };
-    let mut child_sk = &parent_key.secret_key.secret_key + shift.shift;
-    let child_sk = SecretScalar::new(&mut child_sk);
-    ExtendedKeyPair {
-        secret_key: ExtendedSecretKey {
-            secret_key: child_sk,
-            chain_code: shift.child_public_key.chain_code,
-        },
-        public_key: shift.child_public_key,
-    }
-}
-
-/// Derives a child key pair with specified derivation path from parent key pair
-///
-/// Derivation path is an iterator that yields child indexes.
-///
-/// If derivation path is empty, `parent_key` is returned
-///
-/// ### Example
-/// Derive a child key with path m/1/10/1<sub>H</sub>
-/// ```rust
-/// use slip_10::supported_curves::Secp256k1;
-/// # let seed = b"16-64 bytes of high entropy".as_slice();
-/// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
-/// let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
-///
-/// let child_key = slip_10::derive_child_key_pair_with_path(
-///     &master_key_pair,
-///     [1, 10, 1 + slip_10::H],
-/// );
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
-pub fn derive_child_key_pair_with_path<E: Curve>(
-    parent_key: &ExtendedKeyPair<E>,
-    path: impl IntoIterator<Item = impl Into<ChildIndex>>,
-) -> ExtendedKeyPair<E> {
-    let result = try_derive_child_key_pair_with_path(
-        parent_key,
-        path.into_iter().map(Ok::<_, core::convert::Infallible>),
-    );
-    match result {
-        Ok(key) => key,
-        Err(err) => match err {},
-    }
-}
-
-/// Derives a child key pair with specified derivation path from parent key pair
-///
-/// Derivation path is a fallible iterator that yields child indexes. If iterator
-/// yields an error, it's propagated to the caller.
-///
-/// ### Example
-/// Parse a path from the string and derive a child without extra allocations:
-/// ```rust
-/// use slip_10::supported_curves::Secp256k1;
-/// # let seed = b"16-64 bytes of high entropy".as_slice();
-/// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
-/// let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
-///
-/// let path = "1/10/2";
-/// let child_indexes = path.split('/').map(str::parse::<u32>);
-/// let child_key = slip_10::try_derive_child_key_pair_with_path(
-///     &master_key_pair,
-///     child_indexes,
-/// )?;
-/// # Ok::<_, Box<dyn std::error::Error>>(())
-/// ```
-pub fn try_derive_child_key_pair_with_path<E: Curve, Err>(
-    parent_key: &ExtendedKeyPair<E>,
-    path: impl IntoIterator<Item = Result<impl Into<ChildIndex>, Err>>,
-) -> Result<ExtendedKeyPair<E>, Err> {
-    let mut derived_key = parent_key.clone();
-    for child_index in path {
-        derived_key = derive_child_key_pair(&derived_key, child_index?);
-    }
-    Ok(derived_key)
-}
-
-/// Derives child extended public key from parent extended public key
-///
-/// ### Example
-/// Derive a master public key m/1
-/// ```rust
-/// use slip_10::supported_curves::Secp256k1;
-///
-/// # let seed = b"do not use this seed :)".as_slice();
-/// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
-/// let master_public_key = slip_10::ExtendedPublicKey::from(&master_key);
-///
-/// let derived_key = slip_10::derive_child_public_key(
-///     &master_public_key,
-///     1.try_into()?,
-/// );
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
-pub fn derive_child_public_key<E: Curve>(
-    parent_public_key: &ExtendedPublicKey<E>,
-    child_index: NonHardenedIndex,
-) -> ExtendedPublicKey<E> {
-    derive_public_shift(parent_public_key, child_index).child_public_key
-}
-
-/// Derives a child public key with specified derivation path
-///
-/// Derivation path is an iterator that yields child indexes.
-///
-/// If derivation path is empty, `parent_public_key` is returned
-///
-/// ### Example
-/// Derive a child key with path m/1/10
-/// ```rust
-/// use slip_10::supported_curves::Secp256k1;
-/// # let seed = b"16-64 bytes of high entropy".as_slice();
-/// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
-/// let master_public_key = slip_10::ExtendedPublicKey::from(&master_key);
-///
-/// let child_key = slip_10::derive_child_public_key_with_path(
-///     &master_public_key,
-///     [1.try_into()?, 10.try_into()?],
-/// );
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
-pub fn derive_child_public_key_with_path<E: Curve>(
-    parent_public_key: &ExtendedPublicKey<E>,
-    path: impl IntoIterator<Item = NonHardenedIndex>,
-) -> ExtendedPublicKey<E> {
-    let result = try_derive_child_public_key_with_path(
-        parent_public_key,
-        path.into_iter().map(Ok::<_, core::convert::Infallible>),
-    );
-    match result {
-        Ok(key) => key,
-        Err(err) => match err {},
-    }
-}
-
-/// Derives a child public key with specified derivation path
-///
-/// Derivation path is a fallible iterator that yields child indexes. If iterator
-/// yields an error, it's propagated to the caller.
-///
-/// ### Example
-/// Parse a path from the string and derive a child without extra allocations:
-/// ```rust
-/// use slip_10::supported_curves::Secp256k1;
-/// # let seed = b"16-64 bytes of high entropy".as_slice();
-/// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
-/// let master_public_key = slip_10::ExtendedPublicKey::from(&master_key);
-///
-/// let path = "1/10/2";
-/// let child_indexes = path.split('/').map(str::parse);
-/// let child_key = slip_10::try_derive_child_public_key_with_path(
-///     &master_public_key,
-///     child_indexes,
-/// )?;
-/// # Ok::<_, Box<dyn std::error::Error>>(())
-/// ```
-pub fn try_derive_child_public_key_with_path<E: Curve, Err>(
-    parent_public_key: &ExtendedPublicKey<E>,
-    path: impl IntoIterator<Item = Result<NonHardenedIndex, Err>>,
-) -> Result<ExtendedPublicKey<E>, Err> {
-    let mut derived_key = *parent_public_key;
-    for child_index in path {
-        derived_key = derive_child_public_key(&derived_key, child_index?);
-    }
-    Ok(derived_key)
-}
-
-/// Derive a shift for hardened child
-pub fn derive_hardened_shift<E: Curve>(
-    parent_key: &ExtendedKeyPair<E>,
-    child_index: HardenedIndex,
-) -> DerivedShift<E> {
-    let hmac = HmacSha512::new_from_slice(parent_key.chain_code())
-        .expect("this never fails: hmac can handle keys of any size");
-    let i = hmac
-        .clone()
-        .chain_update([0x00])
-        .chain_update(parent_key.secret_key.secret_key.as_ref().to_be_bytes())
-        .chain_update(child_index.to_be_bytes())
-        .finalize()
-        .into_bytes();
-    calculate_shift(&hmac, &parent_key.public_key, *child_index, i)
-}
-
-/// Derives a shift for non-hardened child
-pub fn derive_public_shift<E: Curve>(
-    parent_public_key: &ExtendedPublicKey<E>,
-    child_index: NonHardenedIndex,
-) -> DerivedShift<E> {
-    let hmac = HmacSha512::new_from_slice(&parent_public_key.chain_code)
-        .expect("this never fails: hmac can handle keys of any size");
-    let i = hmac
-        .clone()
-        .chain_update(&parent_public_key.public_key.to_bytes(true))
-        .chain_update(child_index.to_be_bytes())
-        .finalize()
-        .into_bytes();
-    calculate_shift(&hmac, parent_public_key, *child_index, i)
-}
-
-fn calculate_shift<E: Curve>(
-    hmac: &HmacSha512,
-    parent_public_key: &ExtendedPublicKey<E>,
-    child_index: u32,
-    mut i: hmac::digest::Output<HmacSha512>,
-) -> DerivedShift<E> {
-    loop {
-        let (i_left, i_right) = split_into_two_halfes(&i);
-
-        if let Ok(shift) = Scalar::<E>::from_be_bytes(i_left) {
-            let child_pk = parent_public_key.public_key + Point::generator() * shift;
-            if !child_pk.is_zero() {
-                return DerivedShift {
-                    shift,
-                    child_public_key: ExtendedPublicKey {
-                        public_key: child_pk,
-                        chain_code: (*i_right).into(),
-                    },
-                };
-            }
-        }
-
-        i = hmac
+/// Type of HD wallet, like [BIP32] or [SLIP10]
+pub trait HdWallet<E: Curve>: DeriveShift<E> {
+    /// Derives a shift for non-hardened child
+    fn derive_public_shift(
+        parent_public_key: &ExtendedPublicKey<E>,
+        child_index: NonHardenedIndex,
+    ) -> DerivedShift<E> {
+        let hmac = HmacSha512::new_from_slice(&parent_public_key.chain_code)
+            .expect("this never fails: hmac can handle keys of any size");
+        let i = hmac
             .clone()
-            .chain_update([0x01])
-            .chain_update(i_right)
+            .chain_update(&parent_public_key.public_key.to_bytes(true))
             .chain_update(child_index.to_be_bytes())
             .finalize()
-            .into_bytes()
+            .into_bytes();
+        Self::calculate_shift(&hmac, parent_public_key, *child_index, i)
+    }
+
+    /// Derive a shift for hardened child
+    fn derive_hardened_shift(
+        parent_key: &ExtendedKeyPair<E>,
+        child_index: HardenedIndex,
+    ) -> DerivedShift<E> {
+        let hmac = HmacSha512::new_from_slice(parent_key.chain_code())
+            .expect("this never fails: hmac can handle keys of any size");
+        let i = hmac
+            .clone()
+            .chain_update([0x00])
+            .chain_update(parent_key.secret_key.secret_key.as_ref().to_be_bytes())
+            .chain_update(child_index.to_be_bytes())
+            .finalize()
+            .into_bytes();
+        Self::calculate_shift(&hmac, &parent_key.public_key, *child_index, i)
+    }
+
+    /// Derives child extended public key from parent extended public key
+    ///
+    /// ### Example
+    /// Derive a master public key m/1
+    /// ```rust
+    /// use slip_10::supported_curves::Secp256k1;
+    ///
+    /// # let seed = b"do not use this seed :)".as_slice();
+    /// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
+    /// let master_public_key = slip_10::ExtendedPublicKey::from(&master_key);
+    ///
+    /// let derived_key = slip_10::derive_child_public_key(
+    ///     &master_public_key,
+    ///     1.try_into()?,
+    /// );
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    fn derive_child_public_key(
+        parent_public_key: &ExtendedPublicKey<E>,
+        child_index: NonHardenedIndex,
+    ) -> ExtendedPublicKey<E> {
+        Self::derive_public_shift(parent_public_key, child_index).child_public_key
+    }
+
+    /// Derives child key pair (extended secret key + public key) from parent key pair
+    ///
+    /// ### Example
+    /// Derive child key m/1<sub>H</sub> from master key
+    /// ```rust
+    /// use slip_10::supported_curves::Secp256k1;
+    ///
+    /// # let seed = b"do not use this seed :)".as_slice();
+    /// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
+    /// let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
+    ///
+    /// let derived_key = slip_10::derive_child_key_pair(
+    ///     &master_key_pair,
+    ///     1 + slip_10::H,
+    /// );
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    fn derive_child_key_pair(
+        parent_key: &ExtendedKeyPair<E>,
+        child_index: impl Into<ChildIndex>,
+    ) -> ExtendedKeyPair<E> {
+        let child_index = child_index.into();
+        let shift = match child_index {
+            ChildIndex::Hardened(i) => Self::derive_hardened_shift(parent_key, i),
+            ChildIndex::NonHardened(i) => Self::derive_public_shift(&parent_key.public_key, i),
+        };
+        let mut child_sk = &parent_key.secret_key.secret_key + shift.shift;
+        let child_sk = SecretScalar::new(&mut child_sk);
+        ExtendedKeyPair {
+            secret_key: ExtendedSecretKey {
+                secret_key: child_sk,
+                chain_code: shift.child_public_key.chain_code,
+            },
+            public_key: shift.child_public_key,
+        }
+    }
+
+    /// Derives a child key pair with specified derivation path from parent key pair
+    ///
+    /// Derivation path is a fallible iterator that yields child indexes. If iterator
+    /// yields an error, it's propagated to the caller.
+    ///
+    /// ### Example
+    /// Parse a path from the string and derive a child without extra allocations:
+    /// ```rust
+    /// use slip_10::supported_curves::Secp256k1;
+    /// # let seed = b"16-64 bytes of high entropy".as_slice();
+    /// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
+    /// let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
+    ///
+    /// let path = "1/10/2";
+    /// let child_indexes = path.split('/').map(str::parse::<u32>);
+    /// let child_key = slip_10::try_derive_child_key_pair_with_path(
+    ///     &master_key_pair,
+    ///     child_indexes,
+    /// )?;
+    /// # Ok::<_, Box<dyn std::error::Error>>(())
+    /// ```
+    fn try_derive_child_key_pair_with_path<Err>(
+        parent_key: &ExtendedKeyPair<E>,
+        path: impl IntoIterator<Item = Result<impl Into<ChildIndex>, Err>>,
+    ) -> Result<ExtendedKeyPair<E>, Err> {
+        let mut derived_key = parent_key.clone();
+        for child_index in path {
+            derived_key = Self::derive_child_key_pair(&derived_key, child_index?);
+        }
+        Ok(derived_key)
+    }
+
+    /// Derives a child key pair with specified derivation path from parent key pair
+    ///
+    /// Derivation path is an iterator that yields child indexes.
+    ///
+    /// If derivation path is empty, `parent_key` is returned
+    ///
+    /// ### Example
+    /// Derive a child key with path m/1/10/1<sub>H</sub>
+    /// ```rust
+    /// use slip_10::supported_curves::Secp256k1;
+    /// # let seed = b"16-64 bytes of high entropy".as_slice();
+    /// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
+    /// let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
+    ///
+    /// let child_key = slip_10::derive_child_key_pair_with_path(
+    ///     &master_key_pair,
+    ///     [1, 10, 1 + slip_10::H],
+    /// );
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    fn derive_child_key_pair_with_path(
+        parent_key: &ExtendedKeyPair<E>,
+        path: impl IntoIterator<Item = impl Into<ChildIndex>>,
+    ) -> ExtendedKeyPair<E> {
+        let result = Self::try_derive_child_key_pair_with_path(
+            parent_key,
+            path.into_iter().map(Ok::<_, core::convert::Infallible>),
+        );
+        match result {
+            Ok(key) => key,
+            Err(err) => match err {},
+        }
+    }
+
+    /// Derives a child public key with specified derivation path
+    ///
+    /// Derivation path is a fallible iterator that yields child indexes. If iterator
+    /// yields an error, it's propagated to the caller.
+    ///
+    /// ### Example
+    /// Parse a path from the string and derive a child without extra allocations:
+    /// ```rust
+    /// use slip_10::supported_curves::Secp256k1;
+    /// # let seed = b"16-64 bytes of high entropy".as_slice();
+    /// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
+    /// let master_public_key = slip_10::ExtendedPublicKey::from(&master_key);
+    ///
+    /// let path = "1/10/2";
+    /// let child_indexes = path.split('/').map(str::parse);
+    /// let child_key = slip_10::try_derive_child_public_key_with_path(
+    ///     &master_public_key,
+    ///     child_indexes,
+    /// )?;
+    /// # Ok::<_, Box<dyn std::error::Error>>(())
+    /// ```
+    fn try_derive_child_public_key_with_path<Err>(
+        parent_public_key: &ExtendedPublicKey<E>,
+        path: impl IntoIterator<Item = Result<NonHardenedIndex, Err>>,
+    ) -> Result<ExtendedPublicKey<E>, Err> {
+        let mut derived_key = *parent_public_key;
+        for child_index in path {
+            derived_key = Self::derive_child_public_key(&derived_key, child_index?);
+        }
+        Ok(derived_key)
+    }
+
+    /// Derives a child public key with specified derivation path
+    ///
+    /// Derivation path is an iterator that yields child indexes.
+    ///
+    /// If derivation path is empty, `parent_public_key` is returned
+    ///
+    /// ### Example
+    /// Derive a child key with path m/1/10
+    /// ```rust
+    /// use slip_10::supported_curves::Secp256k1;
+    /// # let seed = b"16-64 bytes of high entropy".as_slice();
+    /// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
+    /// let master_public_key = slip_10::ExtendedPublicKey::from(&master_key);
+    ///
+    /// let child_key = slip_10::derive_child_public_key_with_path(
+    ///     &master_public_key,
+    ///     [1.try_into()?, 10.try_into()?],
+    /// );
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    fn derive_child_public_key_with_path(
+        parent_public_key: &ExtendedPublicKey<E>,
+        path: impl IntoIterator<Item = NonHardenedIndex>,
+    ) -> ExtendedPublicKey<E> {
+        let result = Self::try_derive_child_public_key_with_path(
+            parent_public_key,
+            path.into_iter().map(Ok::<_, core::convert::Infallible>),
+        );
+        match result {
+            Ok(key) => key,
+            Err(err) => match err {},
+        }
+    }
+}
+
+impl<E: Curve, S: DeriveShift<E>> HdWallet<E> for S {}
+
+/// Core functionality of HD wallet derivation, everything is defined on top of it
+pub trait DeriveShift<E: Curve> {
+    /// Calculates an additive shift
+    fn calculate_shift(
+        hmac: &HmacSha512,
+        parent_public_key: &ExtendedPublicKey<E>,
+        child_index: u32,
+        i: hmac::digest::Output<HmacSha512>,
+    ) -> DerivedShift<E>;
+}
+
+/// SLIP10-like HD wallet derivation
+pub struct Slip10Like;
+
+impl<E: Curve> DeriveShift<E> for Slip10Like {
+    fn calculate_shift(
+        hmac: &HmacSha512,
+        parent_public_key: &ExtendedPublicKey<E>,
+        child_index: u32,
+        mut i: hmac::digest::Output<HmacSha512>,
+    ) -> DerivedShift<E> {
+        loop {
+            let (i_left, i_right) = split_into_two_halves(&i);
+
+            if let Ok(shift) = Scalar::<E>::from_be_bytes(i_left) {
+                let child_pk = parent_public_key.public_key + Point::generator() * shift;
+                if !child_pk.is_zero() {
+                    return DerivedShift {
+                        shift,
+                        child_public_key: ExtendedPublicKey {
+                            public_key: child_pk,
+                            chain_code: (*i_right).into(),
+                        },
+                    };
+                }
+            }
+
+            i = hmac
+                .clone()
+                .chain_update([0x01])
+                .chain_update(i_right)
+                .chain_update(child_index.to_be_bytes())
+                .finalize()
+                .into_bytes()
+        }
     }
 }
 
 /// Splits array `I` of 64 bytes into two arrays `I_L = I[..32]` and `I_R = I[32..]`
-fn split_into_two_halfes(
+fn split_into_two_halves(
     i: &GenericArray<u8, U64>,
 ) -> (&GenericArray<u8, U32>, &GenericArray<u8, U32>) {
     generic_array::sequence::Split::split(i)

@@ -1,9 +1,9 @@
 [package]
-name = "slip-10"
-version = "0.4.0"
+name = "hd-wallet"
+version = "0.5.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-description = "SLIP10 implementation in Rust"
+description = "HD deteministic wallets derivation, supports BIP32, SLIP10, and other standards"
 repository = "https://github.com/dfns/slip-10"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
