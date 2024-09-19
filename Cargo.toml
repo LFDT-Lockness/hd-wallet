@@ -29,7 +29,7 @@ all-curves = ["curve-secp256k1", "curve-secp256r1"]
 serde = ["dep:serde", "generic-ec/serde"]
 
 [[test]]
-name = "test_vectors"
+name = "slip10_test_vector"
 required-features = ["all-curves"]
 
 [package.metadata.docs.rs]
