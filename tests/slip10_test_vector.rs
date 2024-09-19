@@ -2,7 +2,7 @@ use generic_ec::Curve;
 use hex_literal::hex;
 
 struct TestVector {
-    curve_type: hd_wallet::CurveType,
+    curve_type: hd_wallet::slip10::CurveType,
     seed: &'static [u8],
     derivations: &'static [Derivation],
 }
@@ -21,7 +21,7 @@ const TEST_VECTORS: &[TestVector] = &[
     // Test vector 1 for secp256k1
     TestVector {
         seed: &hex!("000102030405060708090a0b0c0d0e0f"),
-        curve_type: hd_wallet::CurveType::Secp256k1,
+        curve_type: hd_wallet::slip10::CurveType::Secp256k1,
         derivations: &[
             Derivation {
                 path: &[],
@@ -99,7 +99,7 @@ const TEST_VECTORS: &[TestVector] = &[
     },
     // Test vector 1 for nist256p1
     TestVector {
-        curve_type: hd_wallet::CurveType::Secp256r1,
+        curve_type: hd_wallet::slip10::CurveType::Secp256r1,
         seed: &hex!("000102030405060708090a0b0c0d0e0f"),
         derivations: &[
             Derivation {
@@ -178,7 +178,7 @@ const TEST_VECTORS: &[TestVector] = &[
     },
     // Test vector 2 for secp256k1
     TestVector {
-        curve_type: hd_wallet::CurveType::Secp256k1,
+        curve_type: hd_wallet::slip10::CurveType::Secp256k1,
         seed: &hex!(
             "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a2
              9f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
@@ -266,7 +266,7 @@ const TEST_VECTORS: &[TestVector] = &[
     },
     // Test derivation retry for nist256p1
     TestVector {
-        curve_type: hd_wallet::CurveType::Secp256r1,
+        curve_type: hd_wallet::slip10::CurveType::Secp256r1,
         seed: &hex!("000102030405060708090a0b0c0d0e0f"),
         derivations: &[
             Derivation {
@@ -309,7 +309,7 @@ const TEST_VECTORS: &[TestVector] = &[
     },
     // Test seed retry for nist256p1
     TestVector {
-        curve_type: hd_wallet::CurveType::Secp256r1,
+        curve_type: hd_wallet::slip10::CurveType::Secp256r1,
         seed: &hex!("a7305bc8df8d0951f0cb224c0e95d7707cbdf2c6ce7e8d481fec69c7ff5e9446"),
         derivations: &[Derivation {
             path: &[],
@@ -330,20 +330,20 @@ const TEST_VECTORS: &[TestVector] = &[
 fn test_vectors() {
     for vector in TEST_VECTORS {
         match vector.curve_type {
-            hd_wallet::CurveType::Secp256k1 => {
-                run_vector::<hd_wallet::supported_curves::Secp256k1>(vector)
+            hd_wallet::slip10::CurveType::Secp256k1 => {
+                run_vector::<hd_wallet::curves::Secp256k1>(vector)
             }
-            hd_wallet::CurveType::Secp256r1 => {
-                run_vector::<hd_wallet::supported_curves::Secp256r1>(vector)
+            hd_wallet::slip10::CurveType::Secp256r1 => {
+                run_vector::<hd_wallet::curves::Secp256r1>(vector)
             }
         }
     }
 }
 
-fn run_vector<E: Curve + hd_wallet::SupportedCurve>(v: &TestVector) {
+fn run_vector<E: Curve + hd_wallet::slip10::SupportedCurve>(v: &TestVector) {
     use hd_wallet::HdWallet;
 
-    let master_key = hd_wallet::derive_master_key::<E>(&v.seed).unwrap();
+    let master_key = hd_wallet::slip10::derive_master_key::<E>(&v.seed).unwrap();
     let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
 
     for derivation in v.derivations {

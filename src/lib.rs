@@ -57,9 +57,10 @@ use hmac::Mac as _;
     feature = "curve-secp256r1",
     feature = "all-curves"
 ))]
-pub use generic_ec::curves as supported_curves;
+pub use generic_ec::curves;
 
 pub mod errors;
+pub mod slip10;
 
 type HmacSha512 = hmac::Hmac<sha2::Sha512>;
 
@@ -319,86 +320,6 @@ impl<'de, E: Curve> serde::Deserialize<'de> for ExtendedKeyPair<E> {
     {
         let secret_key = ExtendedSecretKey::<E>::deserialize(deserializer)?;
         Ok(secret_key.into())
-    }
-}
-
-/// Marker for a curve supported by SLIP10 specs and this library
-///
-/// Only implement this trait for the curves that are supported by SLIP10 specs.
-/// Curves provided by the crate out-of-box in [supported_curves] module already
-/// implement this trait.
-pub trait SupportedCurve {
-    /// Specifies which curve it is
-    const CURVE_TYPE: CurveType;
-}
-#[cfg(feature = "curve-secp256k1")]
-impl SupportedCurve for supported_curves::Secp256k1 {
-    const CURVE_TYPE: CurveType = CurveType::Secp256k1;
-}
-#[cfg(feature = "curve-secp256r1")]
-impl SupportedCurve for supported_curves::Secp256r1 {
-    const CURVE_TYPE: CurveType = CurveType::Secp256r1;
-}
-
-/// Curves supported by SLIP-10 spec
-///
-/// It's either secp256k1 or secp256r1. Note that SLIP-10 also supports ed25519 curve, but this library
-/// does not support it.
-///
-/// `CurveType` is only needed for master key derivation.
-#[derive(Clone, Copy, Debug)]
-pub enum CurveType {
-    /// Secp256k1 curve
-    Secp256k1,
-    /// Secp256r1 curve
-    Secp256r1,
-}
-
-/// Derives a master key from the seed
-///
-/// Seed must be 16-64 bytes long, otherwise an error is returned
-pub fn derive_master_key<E: Curve + SupportedCurve>(
-    seed: &[u8],
-) -> Result<ExtendedSecretKey<E>, errors::InvalidLength> {
-    let curve_tag = match E::CURVE_TYPE {
-        CurveType::Secp256k1 => "Bitcoin seed",
-        CurveType::Secp256r1 => "Nist256p1 seed",
-    };
-    derive_master_key_with_curve_tag(curve_tag.as_bytes(), seed)
-}
-
-/// Derives a master key from the seed and the curve tag as defined in SLIP10
-///
-/// It's preferred to use [derive_master_key] instead, as it automatically infers
-/// the curve tag for supported curves. The curve tag is not validated by the function,
-/// it's caller's responsibility to make sure that it complies with SLIP10.
-///
-/// Seed must be 16-64 bytes long, otherwise an error is returned
-pub fn derive_master_key_with_curve_tag<E: Curve>(
-    curve_tag: &[u8],
-    seed: &[u8],
-) -> Result<ExtendedSecretKey<E>, errors::InvalidLength> {
-    if !(16 <= seed.len() && seed.len() <= 64) {
-        return Err(errors::InvalidLength);
-    }
-
-    let hmac = HmacSha512::new_from_slice(curve_tag)
-        .expect("this never fails: hmac can handle keys of any size");
-    let mut i = hmac.clone().chain_update(seed).finalize().into_bytes();
-
-    loop {
-        let (i_left, i_right) = split_into_two_halves(&i);
-
-        if let Ok(mut sk) = Scalar::<E>::from_be_bytes(i_left) {
-            if !bool::from(subtle::ConstantTimeEq::ct_eq(&sk, &Scalar::zero())) {
-                return Ok(ExtendedSecretKey {
-                    secret_key: SecretScalar::new(&mut sk),
-                    chain_code: (*i_right).into(),
-                });
-            }
-        }
-
-        i = hmac.clone().chain_update(&i[..]).finalize().into_bytes()
     }
 }
 
@@ -678,6 +599,25 @@ pub trait DeriveShift<E: Curve> {
 }
 
 /// SLIP10-like HD wallet derivation
+///
+/// SLIP10 standard is only defined for a specific set of curves and key types, however,
+/// it can be extended to support any curve. `Slip10Like` works with any curve, not limited
+/// to what defined in the standard. When instantiated with secp256k1 or secp256r1 curves,
+/// it follows exactly SLIP10 derivation rules.
+///
+/// ## Constraints
+/// `Slip10Like` must be used with curves which operate on 32 bytes scalars.
+///
+/// `Slip10Like` is not recommended to be used with curves with order significantly lower
+/// than $2^{256}$ as it worsens the performance.
+///
+/// ## Ed25519 curve
+/// Although `Slip10Like` will work on ed25519 curve, we do not recommend using it, because:
+/// 1. it's confusing as ed25519 curve is defined in SLIP10, however,
+///    `Slip10Like<Ed25519>` will not follow SLIP10 standard
+/// 2. it's quite inefficient
+///
+/// Prefer using [`Edwards`](Edwards) derivation method for ed25519 curve.
 pub struct Slip10Like;
 
 impl<E: Curve> DeriveShift<E> for Slip10Like {
@@ -714,6 +654,36 @@ impl<E: Curve> DeriveShift<E> for Slip10Like {
                 .finalize()
                 .into_bytes()
         }
+    }
+}
+
+/// [SLIP10][slip10-spec] HD wallet derivation
+///
+/// Performs HD derivation as defined in the spec. Refer to [`slip10`] module for more details.
+pub struct Slip10;
+
+#[cfg(feature = "curve-secp256k1")]
+impl DeriveShift<generic_ec::curves::Secp256k1> for Slip10 {
+    type DeriveErr = core::convert::Infallible;
+    fn calculate_shift(
+        hmac: &HmacSha512,
+        parent_public_key: &ExtendedPublicKey<generic_ec::curves::Secp256k1>,
+        child_index: u32,
+        i: hmac::digest::Output<HmacSha512>,
+    ) -> Result<DerivedShift<generic_ec::curves::Secp256k1>, Self::DeriveErr> {
+        Slip10Like::calculate_shift(hmac, parent_public_key, child_index, i)
+    }
+}
+#[cfg(feature = "curve-secp256r1")]
+impl DeriveShift<generic_ec::curves::Secp256r1> for Slip10 {
+    type DeriveErr = core::convert::Infallible;
+    fn calculate_shift(
+        hmac: &HmacSha512,
+        parent_public_key: &ExtendedPublicKey<generic_ec::curves::Secp256r1>,
+        child_index: u32,
+        i: hmac::digest::Output<HmacSha512>,
+    ) -> Result<DerivedShift<generic_ec::curves::Secp256r1>, Self::DeriveErr> {
+        Slip10Like::calculate_shift(hmac, parent_public_key, child_index, i)
     }
 }
 

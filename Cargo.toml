@@ -25,6 +25,7 @@ hex-literal = "0.4"
 std = []
 curve-secp256k1 = ["generic-ec/curve-secp256k1"]
 curve-secp256r1 = ["generic-ec/curve-secp256r1"]
+curve-ed25519 = ["generic-ec/curve-ed25519"]
 all-curves = ["curve-secp256k1", "curve-secp256r1"]
 serde = ["dep:serde", "generic-ec/serde"]
 
