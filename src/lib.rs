@@ -405,10 +405,12 @@ pub fn derive_master_key_with_curve_tag<E: Curve>(
 /// Type of HD wallet, like [BIP32] or [SLIP10]
 pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// Derives a shift for non-hardened child
+    ///
+    /// Returns error if child key is not defined for given child index
     fn derive_public_shift(
         parent_public_key: &ExtendedPublicKey<E>,
         child_index: NonHardenedIndex,
-    ) -> DerivedShift<E> {
+    ) -> Result<DerivedShift<E>, Self::DeriveErr> {
         let hmac = HmacSha512::new_from_slice(&parent_public_key.chain_code)
             .expect("this never fails: hmac can handle keys of any size");
         let i = hmac
@@ -421,10 +423,12 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     }
 
     /// Derive a shift for hardened child
+    ///
+    /// Returns error if child key is not defined for given child index
     fn derive_hardened_shift(
         parent_key: &ExtendedKeyPair<E>,
         child_index: HardenedIndex,
-    ) -> DerivedShift<E> {
+    ) -> Result<DerivedShift<E>, Self::DeriveErr> {
         let hmac = HmacSha512::new_from_slice(parent_key.chain_code())
             .expect("this never fails: hmac can handle keys of any size");
         let i = hmac
@@ -439,6 +443,8 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
 
     /// Derives child extended public key from parent extended public key
     ///
+    /// Returns error if child key is not defined for given child index
+    ///
     /// ### Example
     /// Derive a master public key m/1
     /// ```rust
@@ -451,17 +457,19 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// let derived_key = slip_10::derive_child_public_key(
     ///     &master_public_key,
     ///     1.try_into()?,
-    /// );
+    /// )?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     fn derive_child_public_key(
         parent_public_key: &ExtendedPublicKey<E>,
         child_index: NonHardenedIndex,
-    ) -> ExtendedPublicKey<E> {
-        Self::derive_public_shift(parent_public_key, child_index).child_public_key
+    ) -> Result<ExtendedPublicKey<E>, Self::DeriveErr> {
+        Self::derive_public_shift(parent_public_key, child_index).map(|c| c.child_public_key)
     }
 
     /// Derives child key pair (extended secret key + public key) from parent key pair
+    ///
+    /// Returns error if child key is not defined for given child index
     ///
     /// ### Example
     /// Derive child key m/1<sub>H</sub> from master key
@@ -481,27 +489,32 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     fn derive_child_key_pair(
         parent_key: &ExtendedKeyPair<E>,
         child_index: impl Into<ChildIndex>,
-    ) -> ExtendedKeyPair<E> {
+    ) -> Result<ExtendedKeyPair<E>, Self::DeriveErr> {
         let child_index = child_index.into();
         let shift = match child_index {
-            ChildIndex::Hardened(i) => Self::derive_hardened_shift(parent_key, i),
-            ChildIndex::NonHardened(i) => Self::derive_public_shift(&parent_key.public_key, i),
+            ChildIndex::Hardened(i) => Self::derive_hardened_shift(parent_key, i)?,
+            ChildIndex::NonHardened(i) => Self::derive_public_shift(&parent_key.public_key, i)?,
         };
         let mut child_sk = &parent_key.secret_key.secret_key + shift.shift;
         let child_sk = SecretScalar::new(&mut child_sk);
-        ExtendedKeyPair {
+        Ok(ExtendedKeyPair {
             secret_key: ExtendedSecretKey {
                 secret_key: child_sk,
                 chain_code: shift.child_public_key.chain_code,
             },
             public_key: shift.child_public_key,
-        }
+        })
     }
 
     /// Derives a child key pair with specified derivation path from parent key pair
     ///
     /// Derivation path is a fallible iterator that yields child indexes. If iterator
     /// yields an error, it's propagated to the caller.
+    ///
+    /// Returns:
+    /// * `Ok(Ok(child_key_pair))` if derivation was successful
+    /// * `Ok(Err(derive_err))` if child key is not defined for given path
+    /// * `Err(index_err)` if path contained `Err(index_err)`
     ///
     /// ### Example
     /// Parse a path from the string and derive a child without extra allocations:
@@ -516,18 +529,21 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// let child_key = slip_10::try_derive_child_key_pair_with_path(
     ///     &master_key_pair,
     ///     child_indexes,
-    /// )?;
+    /// )??;
     /// # Ok::<_, Box<dyn std::error::Error>>(())
     /// ```
     fn try_derive_child_key_pair_with_path<Err>(
         parent_key: &ExtendedKeyPair<E>,
         path: impl IntoIterator<Item = Result<impl Into<ChildIndex>, Err>>,
-    ) -> Result<ExtendedKeyPair<E>, Err> {
+    ) -> Result<Result<ExtendedKeyPair<E>, Self::DeriveErr>, Err> {
         let mut derived_key = parent_key.clone();
         for child_index in path {
-            derived_key = Self::derive_child_key_pair(&derived_key, child_index?);
+            derived_key = match Self::derive_child_key_pair(&derived_key, child_index?) {
+                Ok(k) => k,
+                Err(err) => return Ok(Err(err)),
+            };
         }
-        Ok(derived_key)
+        Ok(Ok(derived_key))
     }
 
     /// Derives a child key pair with specified derivation path from parent key pair
@@ -535,6 +551,8 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// Derivation path is an iterator that yields child indexes.
     ///
     /// If derivation path is empty, `parent_key` is returned
+    ///
+    /// Returns error if child key is not defined for given child index
     ///
     /// ### Example
     /// Derive a child key with path m/1/10/1<sub>H</sub>
@@ -553,7 +571,7 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     fn derive_child_key_pair_with_path(
         parent_key: &ExtendedKeyPair<E>,
         path: impl IntoIterator<Item = impl Into<ChildIndex>>,
-    ) -> ExtendedKeyPair<E> {
+    ) -> Result<ExtendedKeyPair<E>, Self::DeriveErr> {
         let result = Self::try_derive_child_key_pair_with_path(
             parent_key,
             path.into_iter().map(Ok::<_, core::convert::Infallible>),
@@ -568,6 +586,11 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     ///
     /// Derivation path is a fallible iterator that yields child indexes. If iterator
     /// yields an error, it's propagated to the caller.
+    ///
+    /// Returns:
+    /// * `Ok(Ok(child_pk))` if derivation was successful
+    /// * `Ok(Err(derive_err))` if child key is not defined for given path
+    /// * `Err(index_err)` if path contained `Err(index_err)`
     ///
     /// ### Example
     /// Parse a path from the string and derive a child without extra allocations:
@@ -588,12 +611,15 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     fn try_derive_child_public_key_with_path<Err>(
         parent_public_key: &ExtendedPublicKey<E>,
         path: impl IntoIterator<Item = Result<NonHardenedIndex, Err>>,
-    ) -> Result<ExtendedPublicKey<E>, Err> {
+    ) -> Result<Result<ExtendedPublicKey<E>, Self::DeriveErr>, Err> {
         let mut derived_key = *parent_public_key;
         for child_index in path {
-            derived_key = Self::derive_child_public_key(&derived_key, child_index?);
+            derived_key = match Self::derive_child_public_key(&derived_key, child_index?) {
+                Ok(k) => k,
+                Err(index_err) => return Ok(Err(index_err)),
+            };
         }
-        Ok(derived_key)
+        Ok(Ok(derived_key))
     }
 
     /// Derives a child public key with specified derivation path
@@ -601,6 +627,8 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// Derivation path is an iterator that yields child indexes.
     ///
     /// If derivation path is empty, `parent_public_key` is returned
+    ///
+    /// Returns error if child key is not defined for given child index
     ///
     /// ### Example
     /// Derive a child key with path m/1/10
@@ -619,7 +647,7 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     fn derive_child_public_key_with_path(
         parent_public_key: &ExtendedPublicKey<E>,
         path: impl IntoIterator<Item = NonHardenedIndex>,
-    ) -> ExtendedPublicKey<E> {
+    ) -> Result<ExtendedPublicKey<E>, Self::DeriveErr> {
         let result = Self::try_derive_child_public_key_with_path(
             parent_public_key,
             path.into_iter().map(Ok::<_, core::convert::Infallible>),
@@ -635,38 +663,46 @@ impl<E: Curve, S: DeriveShift<E>> HdWallet<E> for S {}
 
 /// Core functionality of HD wallet derivation, everything is defined on top of it
 pub trait DeriveShift<E: Curve> {
+    /// Shift derivation error
+    type DeriveErr;
+
     /// Calculates an additive shift
+    ///
+    /// Returns an error if shift is not defined for given inputs
     fn calculate_shift(
         hmac: &HmacSha512,
         parent_public_key: &ExtendedPublicKey<E>,
         child_index: u32,
         i: hmac::digest::Output<HmacSha512>,
-    ) -> DerivedShift<E>;
+    ) -> Result<DerivedShift<E>, Self::DeriveErr>;
 }
 
 /// SLIP10-like HD wallet derivation
 pub struct Slip10Like;
 
 impl<E: Curve> DeriveShift<E> for Slip10Like {
+    /// Slip10 derivation is always defined
+    type DeriveErr = core::convert::Infallible;
+
     fn calculate_shift(
         hmac: &HmacSha512,
         parent_public_key: &ExtendedPublicKey<E>,
         child_index: u32,
         mut i: hmac::digest::Output<HmacSha512>,
-    ) -> DerivedShift<E> {
+    ) -> Result<DerivedShift<E>, Self::DeriveErr> {
         loop {
             let (i_left, i_right) = split_into_two_halves(&i);
 
             if let Ok(shift) = Scalar::<E>::from_be_bytes(i_left) {
                 let child_pk = parent_public_key.public_key + Point::generator() * shift;
                 if !child_pk.is_zero() {
-                    return DerivedShift {
+                    return Ok(DerivedShift {
                         shift,
                         child_public_key: ExtendedPublicKey {
                             public_key: child_pk,
                             chain_code: (*i_right).into(),
                         },
-                    };
+                    });
                 }
             }
 
