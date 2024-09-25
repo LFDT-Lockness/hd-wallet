@@ -53,6 +53,7 @@ use hmac::Mac as _;
 ))]
 pub use generic_ec::curves;
 
+pub mod bip32;
 pub mod errors;
 pub mod slip10;
 
@@ -319,43 +320,6 @@ impl<'de, E: Curve> serde::Deserialize<'de> for ExtendedKeyPair<E> {
 
 /// Type of HD wallet, like [BIP32] or [SLIP10]
 pub trait HdWallet<E: Curve>: DeriveShift<E> {
-    /// Derives a shift for non-hardened child
-    ///
-    /// Returns error if child key is not defined for given child index
-    fn derive_public_shift(
-        parent_public_key: &ExtendedPublicKey<E>,
-        child_index: NonHardenedIndex,
-    ) -> Result<DerivedShift<E>, Self::DeriveErr> {
-        let hmac = HmacSha512::new_from_slice(&parent_public_key.chain_code)
-            .expect("this never fails: hmac can handle keys of any size");
-        let i = hmac
-            .clone()
-            .chain_update(&parent_public_key.public_key.to_bytes(true))
-            .chain_update(child_index.to_be_bytes())
-            .finalize()
-            .into_bytes();
-        Self::calculate_shift(&hmac, parent_public_key, *child_index, i)
-    }
-
-    /// Derive a shift for hardened child
-    ///
-    /// Returns error if child key is not defined for given child index
-    fn derive_hardened_shift(
-        parent_key: &ExtendedKeyPair<E>,
-        child_index: HardenedIndex,
-    ) -> Result<DerivedShift<E>, Self::DeriveErr> {
-        let hmac = HmacSha512::new_from_slice(parent_key.chain_code())
-            .expect("this never fails: hmac can handle keys of any size");
-        let i = hmac
-            .clone()
-            .chain_update([0x00])
-            .chain_update(parent_key.secret_key.secret_key.as_ref().to_be_bytes())
-            .chain_update(child_index.to_be_bytes())
-            .finalize()
-            .into_bytes();
-        Self::calculate_shift(&hmac, &parent_key.public_key, *child_index, i)
-    }
-
     /// Derives child extended public key from parent extended public key
     ///
     /// Returns error if child key is not defined for given child index
@@ -581,31 +545,99 @@ pub trait DeriveShift<E: Curve> {
     /// Shift derivation error
     type DeriveErr;
 
-    /// Calculates an additive shift
+    /// Derives a shift for non-hardened child
     ///
-    /// Returns an error if shift is not defined for given inputs
-    fn calculate_shift(
-        hmac: &HmacSha512,
+    /// Returns error if child key is not defined for given child index
+    fn derive_public_shift(
         parent_public_key: &ExtendedPublicKey<E>,
-        child_index: u32,
-        i: hmac::digest::Output<HmacSha512>,
+        child_index: NonHardenedIndex,
     ) -> Result<DerivedShift<E>, Self::DeriveErr>;
+
+    /// Derive a shift for hardened child
+    ///
+    /// Returns error if child key is not defined for given child index
+    fn derive_hardened_shift(
+        parent_key: &ExtendedKeyPair<E>,
+        child_index: HardenedIndex,
+    ) -> Result<DerivedShift<E>, Self::DeriveErr>;
+}
+
+/// BIP32 HD-wallet derivation
+///
+/// [bip32-spec]: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+pub struct Bip32;
+
+impl DeriveShift<generic_ec::curves::Secp256k1> for Bip32 {
+    type DeriveErr = errors::UndefinedChildKey;
+
+    fn derive_public_shift(
+        parent_public_key: &ExtendedPublicKey<generic_ec::curves::Secp256k1>,
+        child_index: NonHardenedIndex,
+    ) -> Result<DerivedShift<generic_ec::curves::Secp256k1>, Self::DeriveErr> {
+        let hmac = HmacSha512::new_from_slice(&parent_public_key.chain_code)
+            .expect("this never fails: hmac can handle keys of any size");
+        let i = hmac
+            .clone()
+            .chain_update(&parent_public_key.public_key.to_bytes(true))
+            .chain_update(child_index.to_be_bytes())
+            .finalize()
+            .into_bytes();
+        Self::calculate_shift(&parent_public_key.public_key, i)
+    }
+
+    fn derive_hardened_shift(
+        parent_key: &ExtendedKeyPair<generic_ec::curves::Secp256k1>,
+        child_index: HardenedIndex,
+    ) -> Result<DerivedShift<generic_ec::curves::Secp256k1>, Self::DeriveErr> {
+        let hmac = HmacSha512::new_from_slice(parent_key.chain_code())
+            .expect("this never fails: hmac can handle keys of any size");
+        let i = hmac
+            .clone()
+            .chain_update([0x00])
+            .chain_update(parent_key.secret_key.secret_key.as_ref().to_be_bytes())
+            .chain_update(child_index.to_be_bytes())
+            .finalize()
+            .into_bytes();
+        Self::calculate_shift(&parent_key.public_key.public_key, i)
+    }
+}
+
+impl Bip32 {
+    fn calculate_shift(
+        parent_public_key: &Point<generic_ec::curves::Secp256k1>,
+        i: hmac::digest::Output<HmacSha512>,
+    ) -> Result<DerivedShift<generic_ec::curves::Secp256k1>, errors::UndefinedChildKey> {
+        let (i_left, i_right) = split_into_two_halves(&i);
+        let shift = Scalar::from_be_bytes(i_left).map_err(|_| errors::UndefinedChildKey)?;
+        let child_pk =
+            generic_ec::NonZero::from_point(parent_public_key + Point::generator() * shift)
+                .ok_or(errors::UndefinedChildKey)?;
+
+        Ok(DerivedShift {
+            shift,
+            child_public_key: ExtendedPublicKey {
+                public_key: child_pk.into_inner(),
+                chain_code: (*i_right).into(),
+            },
+        })
+    }
 }
 
 /// SLIP10-like HD wallet derivation
 ///
-/// SLIP10 standard is only defined for a specific set of curves and key types, however,
-/// it can be extended to support any curve. `Slip10Like` works with any curve, not limited
-/// to what defined in the standard. When instantiated with secp256k1 or secp256r1 curves,
-/// it follows exactly SLIP10 derivation rules.
+/// `Slip10Like` is generalization of [`Slip10`], which is defined for any curve that meets
+/// constraints listed below.
+///
+/// When `Slip10Like` is instantiated with secp256k1 or secp256r1 curves, it follows exactly
+/// SLIP10 derivation rules.
 ///
 /// ## Constraints
 /// `Slip10Like` must be used with curves which operate on 32 bytes scalars.
 ///
 /// `Slip10Like` is not recommended to be used with curves with order significantly lower
-/// than $2^{256}$ (such as ed25519) as it worsens the performance.
+/// than $2^{256}$ (e.g. ed25519) as it worsens the performance.
 ///
-/// ## Ed25519 curve
+/// ### Ed25519 curve
 /// Although `Slip10Like` will work on ed25519 curve, we do not recommend using it, because:
 /// 1. it's confusing as ed25519 curve is defined in SLIP10, however,
 ///    `Slip10Like<Ed25519>` will not follow SLIP10 standard
@@ -618,25 +650,68 @@ impl<E: Curve> DeriveShift<E> for Slip10Like {
     /// Slip10 derivation is always defined
     type DeriveErr = core::convert::Infallible;
 
-    fn calculate_shift(
+    fn derive_public_shift(
+        parent_public_key: &ExtendedPublicKey<E>,
+        child_index: NonHardenedIndex,
+    ) -> Result<DerivedShift<E>, Self::DeriveErr> {
+        let hmac = HmacSha512::new_from_slice(&parent_public_key.chain_code)
+            .expect("this never fails: hmac can handle keys of any size");
+        let i = hmac
+            .clone()
+            .chain_update(&parent_public_key.public_key.to_bytes(true))
+            .chain_update(child_index.to_be_bytes())
+            .finalize()
+            .into_bytes();
+        Ok(Self::calculate_shift(
+            &hmac,
+            parent_public_key,
+            *child_index,
+            i,
+        ))
+    }
+
+    fn derive_hardened_shift(
+        parent_key: &ExtendedKeyPair<E>,
+        child_index: HardenedIndex,
+    ) -> Result<DerivedShift<E>, Self::DeriveErr> {
+        let hmac = HmacSha512::new_from_slice(parent_key.chain_code())
+            .expect("this never fails: hmac can handle keys of any size");
+        let i = hmac
+            .clone()
+            .chain_update([0x00])
+            .chain_update(parent_key.secret_key.secret_key.as_ref().to_be_bytes())
+            .chain_update(child_index.to_be_bytes())
+            .finalize()
+            .into_bytes();
+        Ok(Self::calculate_shift(
+            &hmac,
+            &parent_key.public_key,
+            *child_index,
+            i,
+        ))
+    }
+}
+
+impl Slip10Like {
+    fn calculate_shift<E: Curve>(
         hmac: &HmacSha512,
         parent_public_key: &ExtendedPublicKey<E>,
         child_index: u32,
         mut i: hmac::digest::Output<HmacSha512>,
-    ) -> Result<DerivedShift<E>, Self::DeriveErr> {
+    ) -> DerivedShift<E> {
         loop {
             let (i_left, i_right) = split_into_two_halves(&i);
 
             if let Ok(shift) = Scalar::<E>::from_be_bytes(i_left) {
                 let child_pk = parent_public_key.public_key + Point::generator() * shift;
                 if !child_pk.is_zero() {
-                    return Ok(DerivedShift {
+                    return DerivedShift {
                         shift,
                         child_public_key: ExtendedPublicKey {
                             public_key: child_pk,
                             chain_code: (*i_right).into(),
                         },
-                    });
+                    };
                 }
             }
 
@@ -661,25 +736,33 @@ pub struct Slip10;
 #[cfg(feature = "curve-secp256k1")]
 impl DeriveShift<generic_ec::curves::Secp256k1> for Slip10 {
     type DeriveErr = core::convert::Infallible;
-    fn calculate_shift(
-        hmac: &HmacSha512,
+    fn derive_public_shift(
         parent_public_key: &ExtendedPublicKey<generic_ec::curves::Secp256k1>,
-        child_index: u32,
-        i: hmac::digest::Output<HmacSha512>,
+        child_index: NonHardenedIndex,
     ) -> Result<DerivedShift<generic_ec::curves::Secp256k1>, Self::DeriveErr> {
-        Slip10Like::calculate_shift(hmac, parent_public_key, child_index, i)
+        Slip10Like::derive_public_shift(parent_public_key, child_index)
+    }
+    fn derive_hardened_shift(
+        parent_key: &ExtendedKeyPair<generic_ec::curves::Secp256k1>,
+        child_index: HardenedIndex,
+    ) -> Result<DerivedShift<generic_ec::curves::Secp256k1>, Self::DeriveErr> {
+        Slip10Like::derive_hardened_shift(parent_key, child_index)
     }
 }
 #[cfg(feature = "curve-secp256r1")]
 impl DeriveShift<generic_ec::curves::Secp256r1> for Slip10 {
     type DeriveErr = core::convert::Infallible;
-    fn calculate_shift(
-        hmac: &HmacSha512,
+    fn derive_public_shift(
         parent_public_key: &ExtendedPublicKey<generic_ec::curves::Secp256r1>,
-        child_index: u32,
-        i: hmac::digest::Output<HmacSha512>,
+        child_index: NonHardenedIndex,
     ) -> Result<DerivedShift<generic_ec::curves::Secp256r1>, Self::DeriveErr> {
-        Slip10Like::calculate_shift(hmac, parent_public_key, child_index, i)
+        Slip10Like::derive_public_shift(parent_public_key, child_index)
+    }
+    fn derive_hardened_shift(
+        parent_key: &ExtendedKeyPair<generic_ec::curves::Secp256r1>,
+        child_index: HardenedIndex,
+    ) -> Result<DerivedShift<generic_ec::curves::Secp256r1>, Self::DeriveErr> {
+        Slip10Like::derive_hardened_shift(parent_key, child_index)
     }
 }
 

@@ -3,22 +3,10 @@
 //! [SLIP10][slip10-spec] is a specification for implementing HD wallets. It aims at supporting many
 //! curves while being compatible with [BIP32][bip32-spec].
 //!
-//! ### Curves support
-//! ed25519 and curve25519 keys are not supported by this library.
-//!
-//! Only secp256k1 and secp256r1 curve are supported.
-//!
-//! ### Slip10-like derivation
-//! SLIP10 standard is only defined for a specific set of curves and key types, however,
-//! it can be extended to support any curve. [`Slip10Like`] works with any curve, not limited
-//! to what defined in the standard.
-//!
-//! We do not recommend using SLIP10-like derivation with Ed25519 curve:
-//! 1. it's confusing as ed25519 curve is defined in SLIP10, however,
-//!    `Slip10Like<Ed25519>` will not follow SLIP10 standard
-//! 2. it's quite inefficient
-//!
-//! Prefer using [`Edwards`](crate::Edwards) derivation method for ed25519 curve.
+//! We provide two [`HdWallet`] implementations:
+//! * [`Slip10`] which follows the spec and only supports the curves defined in the standard (except
+//!   for curves that are explicitly unsupported by this library)
+//! * [`Slip10Like`] which generalizes slip10, it is defined for any curve that meets requirements
 //!
 //! [slip10-spec]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
 //! [bip32-spec]: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
