@@ -1,40 +1,33 @@
-//! SLIP-10: Deterministic key generation
+//! # HD wallets derivation
 //!
-//! [SLIP10][slip10-spec] is a specification for implementing HD wallets. It aims at supporting many
-//! curves while being compatible with [BIP32][bip32-spec].
+//! This crate supports several standards for HD wallet derivation:
+//! * [BIP32][bip32-spec], see [`Bip32`]
+//! * [SLIP10][slip10-spec], see [slip10] module
+//! * Non-standard [`Edwards`] derivation for ed25519 curve
 //!
-//! The implementation is based on [generic-ec](generic_ec) library that provides generic
-//! elliptic curve arithmetic. The crate is `no_std` and `no_alloc` friendly.
+//! To perform HD derivation, use [`HdWallet`] trait.
 //!
-//! ### Curves support
-//! Implementation currently does not support ed25519 curve. All other curves are
-//! supported: both secp256k1 and secp256r1. In fact, implementation may work with any
-//! curve, but only those are covered by the SLIP10 specs.
+//! ### Examples: SLIP10 derivation
 //!
-//! The crate also re-exports supported curves in [supported_curves] module (requires
-//! enabling a feature), but any other curve implementation will work with the crate.
+//! Derive a master key from the seed, and then derive a child key m/1<sub>H</sub>/10:
+//! ```rust
+//! use hd_wallet::{HdWallet, Slip10, curves::Secp256k1};
+//!
+//! let seed = b"16-64 bytes of high entropy".as_slice();
+//! let master_key = hd_wallet::slip10::derive_master_key::<Secp256k1>(seed)?;
+//! let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
+//!
+//! let child_key_pair = Slip10::derive_child_key_pair_with_path(
+//!     &master_key_pair,
+//!     [1 + hd_wallet::H, 10],
+//! )?;
+//! # Ok::<(), Box<dyn std::error::Error>>(())
 //!
 //! ### Features
 //! * `std`: enables std library support (mainly, it just implements [`Error`](std::error::Error)
 //!   trait for the error types)
-//! * `curve-secp256k1` and `curve-secp256r1` add curve implementation into the crate [supported_curves]
-//!   module
-//!
-//! ### Examples
-//!
-//! Derive a master key from the seed, and then derive a child key m/1<sub>H</sub>/10:
-//! ```rust
-//! use slip_10::supported_curves::Secp256k1;
-//!
-//! let seed = b"16-64 bytes of high entropy".as_slice();
-//! let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
-//! let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
-//!
-//! let child_key_pair = slip_10::derive_child_key_pair_with_path(
-//!     &master_key_pair,
-//!     [1 + slip_10::H, 10],
-//! );
-//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! * `curve-secp256k1`, `curve-secp256r1`, `curve-ed25519` add curve implementation into the crate
+//!   [curves] module
 //! ```
 //!
 //! [slip10-spec]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
@@ -55,6 +48,7 @@ use hmac::Mac as _;
 #[cfg(any(
     feature = "curve-secp256k1",
     feature = "curve-secp256r1",
+    feature = "curve-ed25519",
     feature = "all-curves"
 ))]
 pub use generic_ec::curves;
@@ -71,18 +65,18 @@ type HmacSha512 = hmac::Hmac<sha2::Sha512>;
 /// ## Example
 /// Derive a child key with a path m/1<sub>H</sub>
 /// ```rust
-/// use slip_10::supported_curves::Secp256k1;
+/// use hd_wallet::HdWallet;
 ///
 /// # let seed = b"do not use this seed in prod :)".as_slice();
-/// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
-/// let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
-///
-/// let hardened_child = slip_10::derive_child_key_pair(
+/// # let master_key = hd_wallet::slip10::derive_master_key::<hd_wallet::curves::Secp256k1>(seed)?;
+/// # let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
+/// #
+/// let hardened_child = hd_wallet::Slip10::derive_child_key_pair(
 ///     &master_key_pair,
-///     1 + slip_10::H,
+///     1 + hd_wallet::H,
 /// );
 /// #
-/// # Ok::<(), slip_10::errors::InvalidLength>(())
+/// # Ok::<(), hd_wallet::errors::InvalidLength>(())
 /// ```
 pub const H: u32 = 1 << 31;
 
@@ -369,13 +363,13 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// ### Example
     /// Derive a master public key m/1
     /// ```rust
-    /// use slip_10::supported_curves::Secp256k1;
+    /// use hd_wallet::HdWallet;
     ///
     /// # let seed = b"do not use this seed :)".as_slice();
-    /// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
-    /// let master_public_key = slip_10::ExtendedPublicKey::from(&master_key);
-    ///
-    /// let derived_key = slip_10::derive_child_public_key(
+    /// # let master_key = hd_wallet::slip10::derive_master_key::<hd_wallet::curves::Secp256k1>(seed)?;
+    /// # let master_public_key = hd_wallet::ExtendedPublicKey::from(&master_key);
+    /// #
+    /// let derived_key = hd_wallet::Slip10::derive_child_public_key(
     ///     &master_public_key,
     ///     1.try_into()?,
     /// )?;
@@ -395,15 +389,15 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// ### Example
     /// Derive child key m/1<sub>H</sub> from master key
     /// ```rust
-    /// use slip_10::supported_curves::Secp256k1;
+    /// use hd_wallet::HdWallet;
     ///
     /// # let seed = b"do not use this seed :)".as_slice();
-    /// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
-    /// let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
-    ///
-    /// let derived_key = slip_10::derive_child_key_pair(
+    /// # let master_key = hd_wallet::slip10::derive_master_key::<hd_wallet::curves::Secp256k1>(seed)?;
+    /// # let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
+    /// #
+    /// let derived_key = hd_wallet::Slip10::derive_child_key_pair(
     ///     &master_key_pair,
-    ///     1 + slip_10::H,
+    ///     1 + hd_wallet::H,
     /// );
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
@@ -440,14 +434,14 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// ### Example
     /// Parse a path from the string and derive a child without extra allocations:
     /// ```rust
-    /// use slip_10::supported_curves::Secp256k1;
+    /// use hd_wallet::HdWallet;
     /// # let seed = b"16-64 bytes of high entropy".as_slice();
-    /// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
-    /// let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
+    /// # let master_key = hd_wallet::slip10::derive_master_key::<hd_wallet::curves::Secp256k1>(seed)?;
+    /// # let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
     ///
     /// let path = "1/10/2";
     /// let child_indexes = path.split('/').map(str::parse::<u32>);
-    /// let child_key = slip_10::try_derive_child_key_pair_with_path(
+    /// let child_key = hd_wallet::Slip10::try_derive_child_key_pair_with_path(
     ///     &master_key_pair,
     ///     child_indexes,
     /// )??;
@@ -478,15 +472,15 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// ### Example
     /// Derive a child key with path m/1/10/1<sub>H</sub>
     /// ```rust
-    /// use slip_10::supported_curves::Secp256k1;
+    /// use hd_wallet::HdWallet;
     /// # let seed = b"16-64 bytes of high entropy".as_slice();
-    /// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
-    /// let master_key_pair = slip_10::ExtendedKeyPair::from(master_key);
+    /// # let master_key = hd_wallet::slip10::derive_master_key::<hd_wallet::curves::Secp256k1>(seed)?;
+    /// # let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
     ///
-    /// let child_key = slip_10::derive_child_key_pair_with_path(
+    /// let child_key = hd_wallet::Slip10::derive_child_key_pair_with_path(
     ///     &master_key_pair,
-    ///     [1, 10, 1 + slip_10::H],
-    /// );
+    ///     [1, 10, 1 + hd_wallet::H],
+    /// )?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     fn derive_child_key_pair_with_path(
@@ -516,17 +510,17 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// ### Example
     /// Parse a path from the string and derive a child without extra allocations:
     /// ```rust
-    /// use slip_10::supported_curves::Secp256k1;
+    /// use hd_wallet::HdWallet;
     /// # let seed = b"16-64 bytes of high entropy".as_slice();
-    /// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
-    /// let master_public_key = slip_10::ExtendedPublicKey::from(&master_key);
+    /// # let master_key = hd_wallet::slip10::derive_master_key::<hd_wallet::curves::Secp256k1>(seed)?;
+    /// # let master_public_key = hd_wallet::ExtendedPublicKey::from(&master_key);
     ///
     /// let path = "1/10/2";
     /// let child_indexes = path.split('/').map(str::parse);
-    /// let child_key = slip_10::try_derive_child_public_key_with_path(
+    /// let child_key = hd_wallet::Slip10::try_derive_child_public_key_with_path(
     ///     &master_public_key,
     ///     child_indexes,
-    /// )?;
+    /// )??;
     /// # Ok::<_, Box<dyn std::error::Error>>(())
     /// ```
     fn try_derive_child_public_key_with_path<Err>(
@@ -554,15 +548,15 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// ### Example
     /// Derive a child key with path m/1/10
     /// ```rust
-    /// use slip_10::supported_curves::Secp256k1;
+    /// use hd_wallet::HdWallet;
     /// # let seed = b"16-64 bytes of high entropy".as_slice();
-    /// let master_key = slip_10::derive_master_key::<Secp256k1>(seed)?;
-    /// let master_public_key = slip_10::ExtendedPublicKey::from(&master_key);
+    /// # let master_key = hd_wallet::slip10::derive_master_key::<hd_wallet::curves::Secp256k1>(seed)?;
+    /// # let master_public_key = hd_wallet::ExtendedPublicKey::from(&master_key);
     ///
-    /// let child_key = slip_10::derive_child_public_key_with_path(
+    /// let child_key = hd_wallet::Slip10::derive_child_public_key_with_path(
     ///     &master_public_key,
     ///     [1.try_into()?, 10.try_into()?],
-    /// );
+    /// )?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     fn derive_child_public_key_with_path(
@@ -609,7 +603,7 @@ pub trait DeriveShift<E: Curve> {
 /// `Slip10Like` must be used with curves which operate on 32 bytes scalars.
 ///
 /// `Slip10Like` is not recommended to be used with curves with order significantly lower
-/// than $2^{256}$ as it worsens the performance.
+/// than $2^{256}$ (such as ed25519) as it worsens the performance.
 ///
 /// ## Ed25519 curve
 /// Although `Slip10Like` will work on ed25519 curve, we do not recommend using it, because:
@@ -660,6 +654,8 @@ impl<E: Curve> DeriveShift<E> for Slip10Like {
 /// [SLIP10][slip10-spec] HD wallet derivation
 ///
 /// Performs HD derivation as defined in the spec. Refer to [`slip10`] module for more details.
+///
+/// [slip10-spec]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
 pub struct Slip10;
 
 #[cfg(feature = "curve-secp256k1")]
