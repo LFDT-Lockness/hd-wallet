@@ -1,8 +1,7 @@
 //! # HD wallets derivation
 //!
-//! This crate supports several standards for HD wallet derivation:
-//! * [BIP32][bip32-spec], see [`Bip32`]
-//! * [SLIP10][slip10-spec], see [slip10] module
+//! This crate supports the following ways of HD derivation:
+//! * [SLIP10][slip10-spec] (compatible with [BIP32][bip32-spec]), see [slip10] module
 //! * Non-standard [`Edwards`] derivation for ed25519 curve
 //!
 //! To perform HD derivation, use [`HdWallet`] trait.
@@ -20,15 +19,15 @@
 //! let child_key_pair = Slip10::derive_child_key_pair_with_path(
 //!     &master_key_pair,
 //!     [1 + hd_wallet::H, 10],
-//! )?;
+//! );
 //! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 //!
 //! ### Features
 //! * `std`: enables std library support (mainly, it just implements [`Error`](std::error::Error)
 //!   trait for the error types)
 //! * `curve-secp256k1`, `curve-secp256r1`, `curve-ed25519` add curve implementation into the crate
 //!   [curves] module
-//! ```
 //!
 //! [slip10-spec]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
 //! [bip32-spec]: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
@@ -53,7 +52,6 @@ use hmac::Mac as _;
 ))]
 pub use generic_ec::curves;
 
-pub mod bip32;
 pub mod errors;
 pub mod slip10;
 
@@ -318,7 +316,7 @@ impl<'de, E: Curve> serde::Deserialize<'de> for ExtendedKeyPair<E> {
     }
 }
 
-/// Type of HD wallet, like [BIP32] or [SLIP10]
+/// Type of HD wallet, like [`Slip10`]
 pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// Derives child extended public key from parent extended public key
     ///
@@ -336,14 +334,14 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// let derived_key = hd_wallet::Slip10::derive_child_public_key(
     ///     &master_public_key,
     ///     1.try_into()?,
-    /// )?;
+    /// );
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     fn derive_child_public_key(
         parent_public_key: &ExtendedPublicKey<E>,
         child_index: NonHardenedIndex,
-    ) -> Result<ExtendedPublicKey<E>, Self::DeriveErr> {
-        Self::derive_public_shift(parent_public_key, child_index).map(|c| c.child_public_key)
+    ) -> ExtendedPublicKey<E> {
+        Self::derive_public_shift(parent_public_key, child_index).child_public_key
     }
 
     /// Derives child key pair (extended secret key + public key) from parent key pair
@@ -368,21 +366,21 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     fn derive_child_key_pair(
         parent_key: &ExtendedKeyPair<E>,
         child_index: impl Into<ChildIndex>,
-    ) -> Result<ExtendedKeyPair<E>, Self::DeriveErr> {
+    ) -> ExtendedKeyPair<E> {
         let child_index = child_index.into();
         let shift = match child_index {
-            ChildIndex::Hardened(i) => Self::derive_hardened_shift(parent_key, i)?,
-            ChildIndex::NonHardened(i) => Self::derive_public_shift(&parent_key.public_key, i)?,
+            ChildIndex::Hardened(i) => Self::derive_hardened_shift(parent_key, i),
+            ChildIndex::NonHardened(i) => Self::derive_public_shift(&parent_key.public_key, i),
         };
         let mut child_sk = &parent_key.secret_key.secret_key + shift.shift;
         let child_sk = SecretScalar::new(&mut child_sk);
-        Ok(ExtendedKeyPair {
+        ExtendedKeyPair {
             secret_key: ExtendedSecretKey {
                 secret_key: child_sk,
                 chain_code: shift.child_public_key.chain_code,
             },
             public_key: shift.child_public_key,
-        })
+        }
     }
 
     /// Derives a child key pair with specified derivation path from parent key pair
@@ -408,21 +406,18 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// let child_key = hd_wallet::Slip10::try_derive_child_key_pair_with_path(
     ///     &master_key_pair,
     ///     child_indexes,
-    /// )??;
+    /// )?;
     /// # Ok::<_, Box<dyn std::error::Error>>(())
     /// ```
     fn try_derive_child_key_pair_with_path<Err>(
         parent_key: &ExtendedKeyPair<E>,
         path: impl IntoIterator<Item = Result<impl Into<ChildIndex>, Err>>,
-    ) -> Result<Result<ExtendedKeyPair<E>, Self::DeriveErr>, Err> {
+    ) -> Result<ExtendedKeyPair<E>, Err> {
         let mut derived_key = parent_key.clone();
         for child_index in path {
-            derived_key = match Self::derive_child_key_pair(&derived_key, child_index?) {
-                Ok(k) => k,
-                Err(err) => return Ok(Err(err)),
-            };
+            derived_key = Self::derive_child_key_pair(&derived_key, child_index?);
         }
-        Ok(Ok(derived_key))
+        Ok(derived_key)
     }
 
     /// Derives a child key pair with specified derivation path from parent key pair
@@ -444,13 +439,13 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// let child_key = hd_wallet::Slip10::derive_child_key_pair_with_path(
     ///     &master_key_pair,
     ///     [1, 10, 1 + hd_wallet::H],
-    /// )?;
+    /// );
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     fn derive_child_key_pair_with_path(
         parent_key: &ExtendedKeyPair<E>,
         path: impl IntoIterator<Item = impl Into<ChildIndex>>,
-    ) -> Result<ExtendedKeyPair<E>, Self::DeriveErr> {
+    ) -> ExtendedKeyPair<E> {
         let result = Self::try_derive_child_key_pair_with_path(
             parent_key,
             path.into_iter().map(Ok::<_, core::convert::Infallible>),
@@ -484,21 +479,18 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// let child_key = hd_wallet::Slip10::try_derive_child_public_key_with_path(
     ///     &master_public_key,
     ///     child_indexes,
-    /// )??;
+    /// )?;
     /// # Ok::<_, Box<dyn std::error::Error>>(())
     /// ```
     fn try_derive_child_public_key_with_path<Err>(
         parent_public_key: &ExtendedPublicKey<E>,
         path: impl IntoIterator<Item = Result<NonHardenedIndex, Err>>,
-    ) -> Result<Result<ExtendedPublicKey<E>, Self::DeriveErr>, Err> {
+    ) -> Result<ExtendedPublicKey<E>, Err> {
         let mut derived_key = *parent_public_key;
         for child_index in path {
-            derived_key = match Self::derive_child_public_key(&derived_key, child_index?) {
-                Ok(k) => k,
-                Err(index_err) => return Ok(Err(index_err)),
-            };
+            derived_key = Self::derive_child_public_key(&derived_key, child_index?);
         }
-        Ok(Ok(derived_key))
+        Ok(derived_key)
     }
 
     /// Derives a child public key with specified derivation path
@@ -520,13 +512,13 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// let child_key = hd_wallet::Slip10::derive_child_public_key_with_path(
     ///     &master_public_key,
     ///     [1.try_into()?, 10.try_into()?],
-    /// )?;
+    /// );
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     fn derive_child_public_key_with_path(
         parent_public_key: &ExtendedPublicKey<E>,
         path: impl IntoIterator<Item = NonHardenedIndex>,
-    ) -> Result<ExtendedPublicKey<E>, Self::DeriveErr> {
+    ) -> ExtendedPublicKey<E> {
         let result = Self::try_derive_child_public_key_with_path(
             parent_public_key,
             path.into_iter().map(Ok::<_, core::convert::Infallible>),
@@ -542,85 +534,21 @@ impl<E: Curve, S: DeriveShift<E>> HdWallet<E> for S {}
 
 /// Core functionality of HD wallet derivation, everything is defined on top of it
 pub trait DeriveShift<E: Curve> {
-    /// Shift derivation error
-    type DeriveErr;
-
     /// Derives a shift for non-hardened child
     ///
-    /// Returns error if child key is not defined for given child index
+    /// We support only HD derivations that are always defined. This function may not panic.
     fn derive_public_shift(
         parent_public_key: &ExtendedPublicKey<E>,
         child_index: NonHardenedIndex,
-    ) -> Result<DerivedShift<E>, Self::DeriveErr>;
+    ) -> DerivedShift<E>;
 
     /// Derive a shift for hardened child
     ///
-    /// Returns error if child key is not defined for given child index
+    /// We support only HD derivations that are always defined. This function may not panic.
     fn derive_hardened_shift(
         parent_key: &ExtendedKeyPair<E>,
         child_index: HardenedIndex,
-    ) -> Result<DerivedShift<E>, Self::DeriveErr>;
-}
-
-/// BIP32 HD-wallet derivation
-///
-/// [bip32-spec]: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
-pub struct Bip32;
-
-impl DeriveShift<generic_ec::curves::Secp256k1> for Bip32 {
-    type DeriveErr = errors::UndefinedChildKey;
-
-    fn derive_public_shift(
-        parent_public_key: &ExtendedPublicKey<generic_ec::curves::Secp256k1>,
-        child_index: NonHardenedIndex,
-    ) -> Result<DerivedShift<generic_ec::curves::Secp256k1>, Self::DeriveErr> {
-        let hmac = HmacSha512::new_from_slice(&parent_public_key.chain_code)
-            .expect("this never fails: hmac can handle keys of any size");
-        let i = hmac
-            .clone()
-            .chain_update(&parent_public_key.public_key.to_bytes(true))
-            .chain_update(child_index.to_be_bytes())
-            .finalize()
-            .into_bytes();
-        Self::calculate_shift(&parent_public_key.public_key, i)
-    }
-
-    fn derive_hardened_shift(
-        parent_key: &ExtendedKeyPair<generic_ec::curves::Secp256k1>,
-        child_index: HardenedIndex,
-    ) -> Result<DerivedShift<generic_ec::curves::Secp256k1>, Self::DeriveErr> {
-        let hmac = HmacSha512::new_from_slice(parent_key.chain_code())
-            .expect("this never fails: hmac can handle keys of any size");
-        let i = hmac
-            .clone()
-            .chain_update([0x00])
-            .chain_update(parent_key.secret_key.secret_key.as_ref().to_be_bytes())
-            .chain_update(child_index.to_be_bytes())
-            .finalize()
-            .into_bytes();
-        Self::calculate_shift(&parent_key.public_key.public_key, i)
-    }
-}
-
-impl Bip32 {
-    fn calculate_shift(
-        parent_public_key: &Point<generic_ec::curves::Secp256k1>,
-        i: hmac::digest::Output<HmacSha512>,
-    ) -> Result<DerivedShift<generic_ec::curves::Secp256k1>, errors::UndefinedChildKey> {
-        let (i_left, i_right) = split_into_two_halves(&i);
-        let shift = Scalar::from_be_bytes(i_left).map_err(|_| errors::UndefinedChildKey)?;
-        let child_pk =
-            generic_ec::NonZero::from_point(parent_public_key + Point::generator() * shift)
-                .ok_or(errors::UndefinedChildKey)?;
-
-        Ok(DerivedShift {
-            shift,
-            child_public_key: ExtendedPublicKey {
-                public_key: child_pk.into_inner(),
-                chain_code: (*i_right).into(),
-            },
-        })
-    }
+    ) -> DerivedShift<E>;
 }
 
 /// SLIP10-like HD wallet derivation
@@ -647,13 +575,10 @@ impl Bip32 {
 pub struct Slip10Like;
 
 impl<E: Curve> DeriveShift<E> for Slip10Like {
-    /// Slip10 derivation is always defined
-    type DeriveErr = core::convert::Infallible;
-
     fn derive_public_shift(
         parent_public_key: &ExtendedPublicKey<E>,
         child_index: NonHardenedIndex,
-    ) -> Result<DerivedShift<E>, Self::DeriveErr> {
+    ) -> DerivedShift<E> {
         let hmac = HmacSha512::new_from_slice(&parent_public_key.chain_code)
             .expect("this never fails: hmac can handle keys of any size");
         let i = hmac
@@ -662,18 +587,13 @@ impl<E: Curve> DeriveShift<E> for Slip10Like {
             .chain_update(child_index.to_be_bytes())
             .finalize()
             .into_bytes();
-        Ok(Self::calculate_shift(
-            &hmac,
-            parent_public_key,
-            *child_index,
-            i,
-        ))
+        Self::calculate_shift(&hmac, parent_public_key, *child_index, i)
     }
 
     fn derive_hardened_shift(
         parent_key: &ExtendedKeyPair<E>,
         child_index: HardenedIndex,
-    ) -> Result<DerivedShift<E>, Self::DeriveErr> {
+    ) -> DerivedShift<E> {
         let hmac = HmacSha512::new_from_slice(parent_key.chain_code())
             .expect("this never fails: hmac can handle keys of any size");
         let i = hmac
@@ -683,12 +603,7 @@ impl<E: Curve> DeriveShift<E> for Slip10Like {
             .chain_update(child_index.to_be_bytes())
             .finalize()
             .into_bytes();
-        Ok(Self::calculate_shift(
-            &hmac,
-            &parent_key.public_key,
-            *child_index,
-            i,
-        ))
+        Self::calculate_shift(&hmac, &parent_key.public_key, *child_index, i)
     }
 }
 
@@ -735,33 +650,31 @@ pub struct Slip10;
 
 #[cfg(feature = "curve-secp256k1")]
 impl DeriveShift<generic_ec::curves::Secp256k1> for Slip10 {
-    type DeriveErr = core::convert::Infallible;
     fn derive_public_shift(
         parent_public_key: &ExtendedPublicKey<generic_ec::curves::Secp256k1>,
         child_index: NonHardenedIndex,
-    ) -> Result<DerivedShift<generic_ec::curves::Secp256k1>, Self::DeriveErr> {
+    ) -> DerivedShift<generic_ec::curves::Secp256k1> {
         Slip10Like::derive_public_shift(parent_public_key, child_index)
     }
     fn derive_hardened_shift(
         parent_key: &ExtendedKeyPair<generic_ec::curves::Secp256k1>,
         child_index: HardenedIndex,
-    ) -> Result<DerivedShift<generic_ec::curves::Secp256k1>, Self::DeriveErr> {
+    ) -> DerivedShift<generic_ec::curves::Secp256k1> {
         Slip10Like::derive_hardened_shift(parent_key, child_index)
     }
 }
 #[cfg(feature = "curve-secp256r1")]
 impl DeriveShift<generic_ec::curves::Secp256r1> for Slip10 {
-    type DeriveErr = core::convert::Infallible;
     fn derive_public_shift(
         parent_public_key: &ExtendedPublicKey<generic_ec::curves::Secp256r1>,
         child_index: NonHardenedIndex,
-    ) -> Result<DerivedShift<generic_ec::curves::Secp256r1>, Self::DeriveErr> {
+    ) -> DerivedShift<generic_ec::curves::Secp256r1> {
         Slip10Like::derive_public_shift(parent_public_key, child_index)
     }
     fn derive_hardened_shift(
         parent_key: &ExtendedKeyPair<generic_ec::curves::Secp256r1>,
         child_index: HardenedIndex,
-    ) -> Result<DerivedShift<generic_ec::curves::Secp256r1>, Self::DeriveErr> {
+    ) -> DerivedShift<generic_ec::curves::Secp256r1> {
         Slip10Like::derive_hardened_shift(parent_key, child_index)
     }
 }

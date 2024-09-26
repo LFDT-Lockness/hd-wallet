@@ -55,15 +55,3 @@ impl std::error::Error for ParseChildIndexError {
         }
     }
 }
-
-/// Error indicating that HD derivation is not defined for given parent key and child path
-///
-/// This error may occur in [Bip32](crate::Bip32) derivation, only with negligible probability
-#[derive(Debug)]
-pub struct UndefinedChildKey;
-
-impl fmt::Display for UndefinedChildKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("child key is not defined for given parent key and child path")
-    }
-}

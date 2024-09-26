@@ -350,8 +350,7 @@ fn run_vector<E: Curve + hd_wallet::slip10::SupportedCurve>(v: &TestVector) {
         let key = hd_wallet::Slip10Like::derive_child_key_pair_with_path(
             &master_key_pair,
             derivation.path.iter().copied(),
-        )
-        .unwrap_or_else(|x| match x {});
+        );
 
         assert_eq!(key.chain_code(), &derivation.expected_chain_code);
         assert_eq!(
