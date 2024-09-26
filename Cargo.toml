@@ -19,6 +19,7 @@ generic-array = "0.14"
 serde = { version = "1", default-features = false, features = ["derive"], optional = true }
 
 [dev-dependencies]
+hex = "0.4"
 hex-literal = "0.4"
 
 [features]

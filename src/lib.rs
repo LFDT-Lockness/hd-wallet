@@ -42,7 +42,7 @@ use generic_array::{
     GenericArray,
 };
 use generic_ec::{Curve, Point, Scalar, SecretScalar};
-use hmac::Mac as _;
+use hmac::Mac;
 
 #[cfg(any(
     feature = "curve-secp256k1",
@@ -684,4 +684,67 @@ fn split_into_two_halves(
     i: &GenericArray<u8, U64>,
 ) -> (&GenericArray<u8, U32>, &GenericArray<u8, U32>) {
     generic_array::sequence::Split::split(i)
+}
+
+/// HD derivation for Ed25519 curve
+///
+/// This type of derivation isn't defined in any known to us standards, but it can be often
+/// found in other libraries. It is secure and efficient (much more efficient than using
+/// [`Slip10Like<Ed25519>`](Slip10Like), for instance).
+pub struct Edwards;
+
+#[cfg(feature = "curve-ed25519")]
+impl DeriveShift<curves::Ed25519> for Edwards {
+    fn derive_public_shift(
+        parent_public_key: &ExtendedPublicKey<curves::Ed25519>,
+        child_index: NonHardenedIndex,
+    ) -> DerivedShift<curves::Ed25519> {
+        let hmac = HmacSha512::new_from_slice(&parent_public_key.chain_code)
+            .expect("this never fails: hmac can handle keys of any size");
+        let i = hmac
+            .clone()
+            .chain_update(&parent_public_key.public_key.to_bytes(true))
+            // we prepend 0 byte to the public key for compatibility with other libs
+            .chain_update([0x00])
+            .chain_update(child_index.to_be_bytes())
+            .finalize()
+            .into_bytes();
+        Self::calculate_shift(parent_public_key, i)
+    }
+
+    fn derive_hardened_shift(
+        parent_key: &ExtendedKeyPair<curves::Ed25519>,
+        child_index: HardenedIndex,
+    ) -> DerivedShift<curves::Ed25519> {
+        let hmac = HmacSha512::new_from_slice(parent_key.chain_code())
+            .expect("this never fails: hmac can handle keys of any size");
+        let i = hmac
+            .clone()
+            .chain_update([0x00])
+            .chain_update(parent_key.secret_key.secret_key.as_ref().to_be_bytes())
+            .chain_update(child_index.to_be_bytes())
+            .finalize()
+            .into_bytes();
+        Self::calculate_shift(&parent_key.public_key, i)
+    }
+}
+
+impl Edwards {
+    fn calculate_shift(
+        parent_public_key: &ExtendedPublicKey<curves::Ed25519>,
+        i: hmac::digest::Output<HmacSha512>,
+    ) -> DerivedShift<curves::Ed25519> {
+        let (i_left, i_right) = split_into_two_halves(&i);
+
+        let shift = Scalar::from_be_bytes_mod_order(i_left);
+        let child_pk = parent_public_key.public_key + Point::generator() * shift;
+
+        DerivedShift {
+            shift,
+            child_public_key: ExtendedPublicKey {
+                public_key: child_pk,
+                chain_code: (*i_right).into(),
+            },
+        }
+    }
 }

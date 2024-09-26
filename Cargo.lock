@@ -292,6 +292,7 @@ version = "0.5.0"
 dependencies = [
  "generic-array",
  "generic-ec",
+ "hex",
  "hex-literal",
  "hmac",
  "serde",
