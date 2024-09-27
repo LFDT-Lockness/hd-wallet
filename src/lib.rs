@@ -583,7 +583,7 @@ impl<E: Curve> DeriveShift<E> for Slip10Like {
             .expect("this never fails: hmac can handle keys of any size");
         let i = hmac
             .clone()
-            .chain_update(&parent_public_key.public_key.to_bytes(true))
+            .chain_update(parent_public_key.public_key.to_bytes(true))
             .chain_update(child_index.to_be_bytes())
             .finalize()
             .into_bytes();
@@ -758,8 +758,8 @@ impl DeriveShift<curves::Ed25519> for Edwards {
             .expect("this never fails: hmac can handle keys of any size");
         let i = hmac
             .clone()
-            .chain_update(&parent_public_key.public_key.to_bytes(true))
-            // we prepend 0 byte to the public key for compatibility with other libs
+            .chain_update(parent_public_key.public_key.to_bytes(true))
+            // we append 0 byte to the public key for compatibility with other libs
             .chain_update([0x00])
             .chain_update(child_index.to_be_bytes())
             .finalize()
@@ -784,6 +784,7 @@ impl DeriveShift<curves::Ed25519> for Edwards {
     }
 }
 
+#[cfg(feature = "curve-ed25519")]
 impl Edwards {
     fn calculate_shift(
         parent_public_key: &ExtendedPublicKey<curves::Ed25519>,
