@@ -1,12 +1,12 @@
 //! # HD wallets derivation
 //!
-//! This crate supports the following ways of HD derivation:
-//! * [SLIP10][slip10-spec] (compatible with [BIP32][bip32-spec]), see [slip10] module
+//! This crate supports the following HD derivations:
+//! * [SLIP10][slip10-spec] (compatible with [BIP32][bip32-spec]), see [`Slip10`]
 //! * Non-standard [`Edwards`] derivation for ed25519 curve
 //!
 //! To perform HD derivation, use [`HdWallet`] trait.
 //!
-//! ### Examples: SLIP10 derivation
+//! ### Example: SLIP10 derivation
 //!
 //! Derive a master key from the seed, and then derive a child key m/1<sub>H</sub>/10:
 //! ```rust
@@ -316,7 +316,7 @@ impl<'de, E: Curve> serde::Deserialize<'de> for ExtendedKeyPair<E> {
     }
 }
 
-/// Type of HD wallet, like [`Slip10`]
+/// HD derivation
 pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// Derives child extended public key from parent extended public key
     ///
@@ -571,7 +571,7 @@ pub trait DeriveShift<E: Curve> {
 ///    `Slip10Like<Ed25519>` will not follow SLIP10 standard
 /// 2. it's quite inefficient
 ///
-/// Prefer using [`Edwards`](Edwards) derivation method for ed25519 curve.
+/// Prefer using [`Edwards`] derivation method for ed25519 curve.
 pub struct Slip10Like;
 
 impl<E: Curve> DeriveShift<E> for Slip10Like {
@@ -643,7 +643,42 @@ impl Slip10Like {
 
 /// [SLIP10][slip10-spec] HD wallet derivation
 ///
-/// Performs HD derivation as defined in the spec. Refer to [`slip10`] module for more details.
+/// Performs HD derivation as defined in the spec. Only supports secp256k1 and secp256r1 curves.
+///
+/// ## Limitations
+/// We do not support SLIP10 instantiated with ed25519 or curve25519 due to the limitations.
+/// Ed25519 and curve25519 are special-cases in SLIP10 standard, they only support hardened
+/// derivation, and they operate on EdDSA and X25519 private keys instead of elliptic points
+/// and scalars as in other cases. This library only supports HD derivations in which
+/// secret keys are represented as scalars and public keys as points, see [`ExtendedSecretKey`]
+/// and [`ExtendedPublicKey`].
+///
+/// If you need HD derivation on Ed25519 curve, we recommend using [`Edwards`] HD derivation,
+/// which supports both hardened and non-hardened derivation.
+///
+/// ## Master key derivation from the seed
+/// [`slip10::derive_master_key`] can be used to derive a master key from the seed as defined
+/// in the spec.
+///
+/// ## Example
+/// Derive a master key from the seed, and then derive a child key m/1<sub>H</sub>/10:
+/// ```rust
+/// use hd_wallet::{HdWallet, Slip10, curves::Secp256k1};
+///
+/// let seed = b"16-64 bytes of high entropy".as_slice();
+/// let master_key = hd_wallet::slip10::derive_master_key::<Secp256k1>(seed)?;
+/// let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
+///
+/// let child_key_pair = Slip10::derive_child_key_pair_with_path(
+///     &master_key_pair,
+///     [1 + hd_wallet::H, 10],
+/// );
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// ## SLIP10-like derivation
+/// SLIP10 is only defined for a few curves, but it can be extended to support any curve.
+/// See [`Slip10Like`] if you need other curves than is supported by SLIP10.
 ///
 /// [slip10-spec]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
 pub struct Slip10;
@@ -691,6 +726,26 @@ fn split_into_two_halves(
 /// This type of derivation isn't defined in any known to us standards, but it can be often
 /// found in other libraries. It is secure and efficient (much more efficient than using
 /// [`Slip10Like<Ed25519>`](Slip10Like), for instance).
+///
+/// ## Example
+/// ```rust
+/// use hd_wallet::{HdWallet, Edwards, curves::Ed25519};
+///
+/// # fn load_key() -> hd_wallet::ExtendedKeyPair<Ed25519> {
+/// #     hd_wallet::ExtendedSecretKey {
+/// #         secret_key: generic_ec::SecretScalar::random(&mut rand::rngs::OsRng),
+/// #         chain_code: rand::Rng::gen(&mut rand::rngs::OsRng),
+/// #     }.into()
+/// # }
+/// #
+/// let parent_key: hd_wallet::ExtendedKeyPair<Ed25519> = load_key();
+///
+/// let child_key_pair = Edwards::derive_child_key_pair_with_path(
+///     &parent_key,
+///     [1 + hd_wallet::H, 10],
+/// );
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 pub struct Edwards;
 
 #[cfg(feature = "curve-ed25519")]

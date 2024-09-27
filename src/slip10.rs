@@ -1,9 +1,9 @@
-//! SLIP10-specific function
+//! SLIP10 derivation
 //!
 //! [SLIP10][slip10-spec] is a specification for implementing HD wallets. It aims at supporting many
 //! curves while being compatible with [BIP32][bip32-spec].
 //!
-//! We provide two [`HdWallet`] implementations:
+//! We provide two [`HdWallet`](crate::HdWallet) implementations:
 //! * [`Slip10`] which follows the spec and only supports the curves defined in the standard (except
 //!   for curves that are explicitly unsupported by this library)
 //! * [`Slip10Like`] which generalizes slip10, it is defined for any curve that meets requirements
@@ -13,7 +13,7 @@
 
 use hmac::Mac as _;
 
-pub use crate::Slip10Like;
+pub use crate::{Slip10, Slip10Like};
 
 /// Marker for a curve supported by SLIP10 specs and this library
 ///
