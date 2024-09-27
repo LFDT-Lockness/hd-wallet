@@ -33,7 +33,11 @@ serde = ["dep:serde", "generic-ec/serde"]
 
 [[test]]
 name = "slip10_test_vector"
-required-features = ["all-curves"]
+required-features = ["curve-secp256k1", "curve-secp256r1"]
+
+[[test]]
+name = "edwards_test_vector"
+required-features = ["curve-ed25519"]
 
 [package.metadata.docs.rs]
 all-features = true
