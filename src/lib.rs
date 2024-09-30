@@ -320,8 +320,6 @@ impl<'de, E: Curve> serde::Deserialize<'de> for ExtendedKeyPair<E> {
 pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// Derives child extended public key from parent extended public key
     ///
-    /// Returns error if child key is not defined for given child index
-    ///
     /// ### Example
     /// Derive a master public key m/1
     /// ```rust
@@ -345,8 +343,6 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     }
 
     /// Derives child key pair (extended secret key + public key) from parent key pair
-    ///
-    /// Returns error if child key is not defined for given child index
     ///
     /// ### Example
     /// Derive child key m/1<sub>H</sub> from master key
@@ -389,8 +385,7 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// yields an error, it's propagated to the caller.
     ///
     /// Returns:
-    /// * `Ok(Ok(child_key_pair))` if derivation was successful
-    /// * `Ok(Err(derive_err))` if child key is not defined for given path
+    /// * `Ok(child_key_pair)` if derivation was successful
     /// * `Err(index_err)` if path contained `Err(index_err)`
     ///
     /// ### Example
@@ -426,8 +421,6 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     ///
     /// If derivation path is empty, `parent_key` is returned
     ///
-    /// Returns error if child key is not defined for given child index
-    ///
     /// ### Example
     /// Derive a child key with path m/1/10/1<sub>H</sub>
     /// ```rust
@@ -462,8 +455,7 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// yields an error, it's propagated to the caller.
     ///
     /// Returns:
-    /// * `Ok(Ok(child_pk))` if derivation was successful
-    /// * `Ok(Err(derive_err))` if child key is not defined for given path
+    /// * `Ok(child_pk)` if derivation was successful
     /// * `Err(index_err)` if path contained `Err(index_err)`
     ///
     /// ### Example
@@ -498,8 +490,6 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
     /// Derivation path is an iterator that yields child indexes.
     ///
     /// If derivation path is empty, `parent_public_key` is returned
-    ///
-    /// Returns error if child key is not defined for given child index
     ///
     /// ### Example
     /// Derive a child key with path m/1/10
