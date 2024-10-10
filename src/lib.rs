@@ -10,16 +10,41 @@
 //!
 //! Derive a master key from the seed, and then derive a child key m/1<sub>H</sub>/10:
 //! ```rust
-//! use hd_wallet::{HdWallet, Slip10, curves::Secp256k1};
+//! use hd_wallet::{slip10, curves::Secp256k1};
 //!
 //! let seed = b"16-64 bytes of high entropy".as_slice();
-//! let master_key = hd_wallet::slip10::derive_master_key::<Secp256k1>(seed)?;
+//! let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
 //! let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
 //!
-//! let child_key_pair = Slip10::derive_child_key_pair_with_path(
+//! let child_key_pair = slip10::derive_child_key_pair_with_path(
 //!     &master_key_pair,
 //!     [1 + hd_wallet::H, 10],
 //! );
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! ### Example: via [HdWallet] trait
+//!
+//! [`HdWallet`] trait generalizes HD derivation algorithm, you can use it with generics:
+//! ```rust
+//! use hd_wallet::{Slip10Like, curves::Secp256r1};
+//!
+//! fn derive_using_generic_algo<E: generic_ec::Curve, Hd: hd_wallet::HdWallet<E>>(
+//!     master_key: hd_wallet::ExtendedKeyPair<E>,
+//! ) -> hd_wallet::ExtendedKeyPair<E>
+//! {
+//!     Hd::derive_child_key_pair_with_path(
+//!         &master_key,
+//!         [1 + hd_wallet::H, 10],
+//!     )
+//! }
+//!
+//! // Use it with any HD derivation:
+//! let seed = b"16-64 bytes of high entropy".as_slice();
+//! let master_key = hd_wallet::slip10::derive_master_key(seed)?;
+//! let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
+//! let child_key = derive_using_generic_algo::<Secp256r1, Slip10Like>(master_key_pair);
+//!
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
@@ -44,16 +69,32 @@ use generic_array::{
 use generic_ec::{Curve, Point, Scalar, SecretScalar};
 use hmac::Mac;
 
-#[cfg(any(
-    feature = "curve-secp256k1",
-    feature = "curve-secp256r1",
-    feature = "curve-ed25519",
-    feature = "all-curves"
-))]
 pub use generic_ec::curves;
 
 pub mod errors;
 pub mod slip10;
+
+/// Slip10-like HD derivation
+///
+/// This module provides aliases for calling `<Slip10Like as HdWallet<_>>::*` methods for convenience
+/// when you don't need to support generic HD derivation algorithm.
+///
+/// See [`Slip10Like`] docs to learn more about the derivation method.
+pub mod slip10_like {
+    pub use crate::Slip10Like;
+    super::create_aliases!(Slip10Like, slip10_like);
+}
+
+/// Edwards HD derivation
+///
+/// This module provides aliases for calling `<Edwards as HdWallet<_>>::*` methods for convenience
+/// when you don't need to support generic HD derivation algorithm.
+///
+/// See [`Edwards`] docs to learn more about the derivation method.
+pub mod edwards {
+    pub use crate::Edwards;
+    super::create_aliases!(Edwards, edwards, hd_wallet::curves::Ed25519);
+}
 
 type HmacSha512 = hmac::Hmac<sha2::Sha512>;
 
@@ -315,6 +356,247 @@ impl<'de, E: Curve> serde::Deserialize<'de> for ExtendedKeyPair<E> {
         Ok(secret_key.into())
     }
 }
+
+/// * `$t` - type to monomorphise for, like `Slip10` or `Edwards`
+/// * `$m` - current module, module where these functions will appear. Used in doc
+/// tests only
+/// * `$e` - curve supported by this HD derivation, used in doc tests only
+macro_rules! create_aliases {
+    ($t:ty, $m:expr) => { $crate::create_aliases!($t, $m, hd_wallet::curves::Secp256k1); };
+    ($t:ty, $m:expr, $e:ty) => {
+        /// Derives a shift for non-hardened child
+        ///
+        #[doc = concat!("Alias to [`<", stringify!($t), " as DeriveShift<E>>::derive_public_shift`](crate::DeriveShift::derive_public_shift)")]
+        pub fn derive_public_shift<E>(
+            parent_public_key: &crate::ExtendedPublicKey<E>,
+            child_index: crate::NonHardenedIndex,
+        ) -> crate::DerivedShift<E>
+        where
+            E: generic_ec::Curve,
+            $t: crate::DeriveShift<E>,
+        {
+            <$t as crate::DeriveShift<E>>::derive_public_shift(parent_public_key, child_index)
+        }
+
+        /// Derive a shift for hardened child
+        ///
+        #[doc = concat!("Alias to [`<", stringify!($t), " as DeriveShift<E>>::derive_hardened_shift`](crate::DeriveShift::derive_hardened_shift)")]
+        pub fn derive_hardened_shift<E>(
+            parent_key: &crate::ExtendedKeyPair<E>,
+            child_index: crate::HardenedIndex,
+        ) -> crate::DerivedShift<E>
+        where
+            E: generic_ec::Curve,
+            $t: crate::DeriveShift<E>,
+        {
+            <$t as crate::DeriveShift<E>>::derive_hardened_shift(parent_key, child_index)
+        }
+
+        /// Derives child extended public key from parent extended public key
+        ///
+        #[doc = concat!("Alias to [`<", stringify!($t), " as HdWallet<E>>::derive_child_public_key`](crate::HdWallet::derive_child_public_key)")]
+        ///
+        /// ### Example
+        /// Derive a master public key m/1
+        /// ```rust,no_run
+        #[doc = concat!( "# type E = ", stringify!($e), ";" )]
+        /// # let seed = b"do not use this seed :)".as_slice();
+        /// # let master_key: hd_wallet::ExtendedSecretKey<E> = todo!();
+        /// # let master_public_key = hd_wallet::ExtendedPublicKey::from(&master_key);
+        /// #
+        #[doc = concat!("let derived_key = hd_wallet::", stringify!($m), "::derive_child_public_key(")]
+        ///     &master_public_key,
+        ///     1.try_into()?,
+        /// );
+        /// # Ok::<(), Box<dyn std::error::Error>>(())
+        /// ```
+        pub fn derive_child_public_key<E>(
+            parent_public_key: &crate::ExtendedPublicKey<E>,
+            child_index: crate::NonHardenedIndex,
+        ) -> crate::ExtendedPublicKey<E>
+        where
+            E: generic_ec::Curve,
+            $t: crate::HdWallet<E>,
+        {
+            <$t as crate::HdWallet<E>>::derive_child_public_key(parent_public_key, child_index)
+        }
+
+        /// Derives child key pair (extended secret key + public key) from parent key pair
+        ///
+        #[doc = concat!("Alias to [`<", stringify!($t), " as HdWallet<E>>::derive_child_key_pair`](crate::HdWallet::derive_child_key_pair)")]
+        ///
+        /// ### Example
+        /// Derive child key m/1<sub>H</sub> from master key
+        /// ```rust,no_run
+        #[doc = concat!( "# type E = ", stringify!($e), ";" )]
+        /// # let seed = b"do not use this seed :)".as_slice();
+        /// # let master_key: hd_wallet::ExtendedSecretKey<E> = todo!();
+        /// # let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
+        /// #
+        #[doc = concat!("let derived_key = hd_wallet::", stringify!($m), "::derive_child_key_pair(")]
+        ///     &master_key_pair,
+        ///     1 + hd_wallet::H,
+        /// );
+        /// # Ok::<(), Box<dyn std::error::Error>>(())
+        /// ```
+        pub fn derive_child_key_pair<E>(
+            parent_key: &crate::ExtendedKeyPair<E>,
+            child_index: impl Into<crate::ChildIndex>,
+        ) -> crate::ExtendedKeyPair<E>
+        where
+            E: generic_ec::Curve,
+            $t: crate::HdWallet<E>,
+        {
+            <$t as crate::HdWallet<E>>::derive_child_key_pair(parent_key, child_index)
+        }
+
+        /// Derives a child key pair with specified derivation path from parent key pair
+        ///
+        /// Derivation path is a fallible iterator that yields child indexes. If iterator
+        /// yields an error, it's propagated to the caller.
+        ///
+        /// Returns:
+        /// * `Ok(child_key_pair)` if derivation was successful
+        /// * `Err(index_err)` if path contained `Err(index_err)`
+        ///
+        #[doc = concat!("Alias to [`<", stringify!($t), " as HdWallet<E>>::try_derive_child_key_pair_with_path`](crate::HdWallet::try_derive_child_key_pair_with_path)")]
+        ///
+        /// ### Example
+        /// Parse a path from the string and derive a child without extra allocations:
+        /// ```rust,no_run
+        /// use hd_wallet::HdWallet;
+        #[doc = concat!( "# type E = ", stringify!($e), ";" )]
+        /// # let seed = b"16-64 bytes of high entropy".as_slice();
+        /// # let master_key: hd_wallet::ExtendedSecretKey<E> = todo!();
+        /// # let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
+        ///
+        /// let path = "1/10/2";
+        /// let child_indexes = path.split('/').map(str::parse::<u32>);
+        #[doc = concat!("let child_key = hd_wallet::", stringify!($m), "::try_derive_child_key_pair_with_path(")]
+        ///     &master_key_pair,
+        ///     child_indexes,
+        /// )?;
+        /// # Ok::<_, Box<dyn std::error::Error>>(())
+        /// ```
+        pub fn try_derive_child_key_pair_with_path<E, Err>(
+            parent_key: &crate::ExtendedKeyPair<E>,
+            path: impl IntoIterator<Item = Result<impl Into<crate::ChildIndex>, Err>>,
+        ) -> Result<crate::ExtendedKeyPair<E>, Err>
+        where
+            E: generic_ec::Curve,
+            $t: crate::HdWallet<E>,
+        {
+            <$t as crate::HdWallet<E>>::try_derive_child_key_pair_with_path(parent_key, path)
+        }
+        /// Derives a child key pair with specified derivation path from parent key pair
+        ///
+        /// Derivation path is an iterator that yields child indexes.
+        ///
+        /// If derivation path is empty, `parent_key` is returned
+        ///
+        #[doc = concat!("Alias to [`<", stringify!($t), " as HdWallet<E>>::derive_child_key_pair_with_path`](crate::HdWallet::derive_child_key_pair_with_path)")]
+        ///
+        /// ### Example
+        /// Derive a child key with path m/1/10/1<sub>H</sub>
+        /// ```rust,no_run
+        /// use hd_wallet::HdWallet;
+        #[doc = concat!( "# type E = ", stringify!($e), ";" )]
+        /// # let seed = b"16-64 bytes of high entropy".as_slice();
+        /// # let master_key: hd_wallet::ExtendedSecretKey<E> = todo!();
+        /// # let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
+        ///
+        #[doc = concat!("let child_key = hd_wallet::", stringify!($m), "::derive_child_key_pair_with_path(")]
+        ///     &master_key_pair,
+        ///     [1, 10, 1 + hd_wallet::H],
+        /// );
+        /// # Ok::<(), Box<dyn std::error::Error>>(())
+        /// ```
+        pub fn derive_child_key_pair_with_path<E>(
+            parent_key: &crate::ExtendedKeyPair<E>,
+            path: impl IntoIterator<Item = impl Into<crate::ChildIndex>>,
+        ) -> crate::ExtendedKeyPair<E>
+        where
+            E: generic_ec::Curve,
+            $t: crate::HdWallet<E>,
+        {
+            <$t as crate::HdWallet<E>>::derive_child_key_pair_with_path(parent_key, path)
+        }
+
+        /// Derives a child public key with specified derivation path
+        ///
+        /// Derivation path is a fallible iterator that yields child indexes. If iterator
+        /// yields an error, it's propagated to the caller.
+        ///
+        /// Returns:
+        /// * `Ok(child_pk)` if derivation was successful
+        /// * `Err(index_err)` if path contained `Err(index_err)`
+        ///
+        #[doc = concat!("Alias to [`<", stringify!($t), " as HdWallet<E>>::try_derive_child_public_key_with_path`](crate::HdWallet::try_derive_child_public_key_with_path)")]
+        ///
+        /// ### Example
+        /// Parse a path from the string and derive a child without extra allocations:
+        /// ```rust,no_run
+        /// use hd_wallet::HdWallet;
+        #[doc = concat!( "# type E = ", stringify!($e), ";" )]
+        /// # let seed = b"16-64 bytes of high entropy".as_slice();
+        /// # let master_key: hd_wallet::ExtendedSecretKey<E> = todo!();
+        /// # let master_public_key = hd_wallet::ExtendedPublicKey::from(&master_key);
+        ///
+        /// let path = "1/10/2";
+        /// let child_indexes = path.split('/').map(str::parse);
+        #[doc = concat!("let child_key = hd_wallet::", stringify!($m), "::try_derive_child_public_key_with_path(")]
+        ///     &master_public_key,
+        ///     child_indexes,
+        /// )?;
+        /// # Ok::<_, Box<dyn std::error::Error>>(())
+        /// ```
+        pub fn try_derive_child_public_key_with_path<E, Err>(
+            parent_public_key: &crate::ExtendedPublicKey<E>,
+            path: impl IntoIterator<Item = Result<crate::NonHardenedIndex, Err>>,
+        ) -> Result<crate::ExtendedPublicKey<E>, Err>
+        where
+            E: generic_ec::Curve,
+            $t: crate::HdWallet<E>,
+        {
+            <$t as crate::HdWallet<E>>::try_derive_child_public_key_with_path(parent_public_key, path)
+        }
+
+        /// Derives a child public key with specified derivation path
+        ///
+        /// Derivation path is an iterator that yields child indexes.
+        ///
+        /// If derivation path is empty, `parent_public_key` is returned
+        ///
+        #[doc = concat!("Alias to [`<", stringify!($t), " as HdWallet<E>>::derive_child_public_key_with_path`](crate::HdWallet::derive_child_public_key_with_path)")]
+        ///
+        /// ### Example
+        /// Derive a child key with path m/1/10
+        /// ```rust,no_run
+        /// use hd_wallet::HdWallet;
+        #[doc = concat!( "# type E = ", stringify!($e), ";" )]
+        /// # let seed = b"16-64 bytes of high entropy".as_slice();
+        /// # let master_key: hd_wallet::ExtendedSecretKey<E> = todo!();
+        /// # let master_public_key = hd_wallet::ExtendedPublicKey::from(&master_key);
+        ///
+        #[doc = concat!("let child_key = hd_wallet::", stringify!($m), "::derive_child_public_key_with_path(")]
+        ///     &master_public_key,
+        ///     [1.try_into()?, 10.try_into()?],
+        /// );
+        /// # Ok::<(), Box<dyn std::error::Error>>(())
+        /// ```
+        pub fn derive_child_public_key_with_path<E>(
+            parent_public_key: &crate::ExtendedPublicKey<E>,
+            path: impl IntoIterator<Item = crate::NonHardenedIndex>,
+        ) -> crate::ExtendedPublicKey<E>
+        where
+            E: generic_ec::Curve,
+            $t: crate::HdWallet<E>,
+        {
+            <$t as crate::HdWallet<E>>::derive_child_public_key_with_path(parent_public_key, path)
+        }
+    };
+}
+pub(crate) use create_aliases;
 
 /// HD derivation
 pub trait HdWallet<E: Curve>: DeriveShift<E> {

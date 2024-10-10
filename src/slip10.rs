@@ -3,17 +3,18 @@
 //! [SLIP10][slip10-spec] is a specification for implementing HD wallets. It aims at supporting many
 //! curves while being compatible with [BIP32][bip32-spec].
 //!
-//! We provide two [`HdWallet`](crate::HdWallet) implementations:
-//! * [`Slip10`] which follows the spec and only supports the curves defined in the standard (except
-//!   for curves that are explicitly unsupported by this library)
-//! * [`Slip10Like`] which generalizes slip10, it is defined for any curve that meets requirements
+//! Refer to [`Slip10`] docs to learn more about the derivation method.
+//!
+//! This module provides [`derive_master_key`] function that can be used to derive a master key
+//! from the seed, as well as aliases for calling `<Slip10 as HdWallet>::*` methods for convenience
+//! when you don't need to support generic HD derivation algorithm.
 //!
 //! [slip10-spec]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
 //! [bip32-spec]: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
 use hmac::Mac as _;
 
-pub use crate::{Slip10, Slip10Like};
+pub use crate::Slip10;
 
 /// Marker for a curve supported by SLIP10 specs and this library
 ///
@@ -100,3 +101,5 @@ pub fn derive_master_key_with_curve_tag<E: generic_ec::Curve>(
         i = hmac.clone().chain_update(&i[..]).finalize().into_bytes()
     }
 }
+
+super::create_aliases!(Slip10, slip10);
