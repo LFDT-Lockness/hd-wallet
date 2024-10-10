@@ -10,16 +10,40 @@ To perform HD derivation, use `HdWallet` trait.
 
 Derive a master key from the seed, and then derive a child key m/1<sub>H</sub>/10:
 ```rust
-use hd_wallet::{HdWallet, Slip10, curves::Secp256k1};
+use hd_wallet::{slip10, curves::Secp256k1};
 
 let seed = b"16-64 bytes of high entropy".as_slice();
-let master_key = hd_wallet::slip10::derive_master_key::<Secp256k1>(seed)?;
+let master_key = slip10::derive_master_key::<Secp256k1>(seed)?;
 let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
 
-let child_key_pair = Slip10::derive_child_key_pair_with_path(
+let child_key_pair = slip10::derive_child_key_pair_with_path(
     &master_key_pair,
     [1 + hd_wallet::H, 10],
 );
+```
+
+### Example: via HdWallet trait
+
+`HdWallet` trait generalizes HD derivation algorithm, you can use it with generics:
+```rust
+use hd_wallet::{Slip10Like, curves::Secp256r1};
+
+fn derive_using_generic_algo<E: generic_ec::Curve, Hd: hd_wallet::HdWallet<E>>(
+    master_key: hd_wallet::ExtendedKeyPair<E>,
+) -> hd_wallet::ExtendedKeyPair<E>
+{
+    Hd::derive_child_key_pair_with_path(
+        &master_key,
+        [1 + hd_wallet::H, 10],
+    )
+}
+
+// Use it with any HD derivation:
+let seed = b"16-64 bytes of high entropy".as_slice();
+let master_key = hd_wallet::slip10::derive_master_key(seed)?;
+let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
+let child_key = derive_using_generic_algo::<Secp256r1, Slip10Like>(master_key_pair);
+
 ```
 
 ### Features
