@@ -359,7 +359,7 @@ impl<'de, E: Curve> serde::Deserialize<'de> for ExtendedKeyPair<E> {
 
 /// * `$t` - type to monomorphise for, like `Slip10` or `Edwards`
 /// * `$m` - current module, module where these functions will appear. Used in doc
-/// tests only
+///    tests only
 /// * `$e` - curve supported by this HD derivation, used in doc tests only
 macro_rules! create_aliases {
     ($t:ty, $m:expr) => { $crate::create_aliases!($t, $m, hd_wallet::curves::Secp256k1); };
