@@ -1,5 +1,10 @@
 # hd-wallet crate changelog
 
+## v0.5.1
+* Update docs and repo link [#11]
+
+[#11]: https://github.com/LFDT-Lockness/hd-wallet/pull/11
+
 ## v0.5.0
 * The first release of `hd-wallet`, successor of `slip-10` crate. It has all functionality of
   `slip-10` plus special Edwards derivation that works with Ed25519 curve [#8]
