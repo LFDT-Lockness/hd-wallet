@@ -1,7 +1,7 @@
 //! ![License](https://img.shields.io/crates/l/hd-wallet.svg)
 //! [![Docs](https://docs.rs/hd-wallet/badge.svg)](https://docs.rs/hd-wallet)
 //! [![Crates io](https://img.shields.io/crates/v/hd-wallet.svg)](https://crates.io/crates/hd-wallet)
-//! [![Discord](https://img.shields.io/discord/905194001349627914?logo=discord&logoColor=ffffff&label=Discord)][in Discord]
+//! [![Discord](https://img.shields.io/discord/905194001349627914?logo=discord&logoColor=ffffff&label=Discord)](https://discordapp.com/channels/905194001349627914/1285268686147424388)
 //!
 //! # HD wallets derivation
 //!
