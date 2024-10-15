@@ -1,5 +1,9 @@
 # SLIP-10: Deterministic key generation
 
+<div class="warning">`slip-10` crate has been restructured and renamed into
+[`hd-wallet`](https://crates.io/crates/hd-wallet)! `slip-10` will not likely
+to receive any future updates. Please, consider switching to successor library.</div>
+
 [SLIP10][slip10-spec] is a specification for implementing HD wallets. It aims at supporting many
 curves while being compatible with [BIP32][bip32-spec].
 
