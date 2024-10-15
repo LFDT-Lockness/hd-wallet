@@ -1,4 +1,4 @@
-# # HD wallets derivation
+# HD wallets derivation
 
 This crate supports the following HD derivations:
 * [SLIP10][slip10-spec] (compatible with [BIP32][bip32-spec]), see `Slip10`
