@@ -1,3 +1,8 @@
+![License](https://img.shields.io/crates/l/hd-wallet.svg)
+[![Docs](https://docs.rs/hd-wallet/badge.svg)](https://docs.rs/hd-wallet)
+[![Crates io](https://img.shields.io/crates/v/hd-wallet.svg)](https://crates.io/crates/hd-wallet)
+[![Discord](https://img.shields.io/discord/905194001349627914?logo=discord&logoColor=ffffff&label=Discord)](https://discordapp.com/channels/905194001349627914/1285268686147424388)
+
 # HD wallets derivation
 
 This crate supports the following HD derivations:
@@ -51,6 +56,9 @@ let child_key = derive_using_generic_algo::<Secp256r1, Slip10Like>(master_key_pa
   trait for the error types)
 * `curve-secp256k1`, `curve-secp256r1`, `curve-ed25519` add curve implementation into the crate
   curves module
+
+## Join us in Discord!
+Feel free to reach out to us [in Discord](https://discordapp.com/channels/905194001349627914/1285268686147424388)!
 
 [slip10-spec]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
 [bip32-spec]: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
