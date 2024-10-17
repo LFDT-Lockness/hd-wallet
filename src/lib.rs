@@ -6,6 +6,21 @@
 //! [`hd-wallet`](https://crates.io/crates/hd-wallet)! `slip-10` is not likely
 //! to receive any future updates. Please, consider switching to successor library.
 //!
+//! In order to migrate to the successor `hd-wallet v0.5`, include it into Cargo.toml:
+//! ```toml
+//! hd-wallet = "0.5"
+//! ```
+//!
+//! Then you'll need to change `slip_10::` references in your code to `hd_wallet::`. For instance,
+//! `slip_10::HardenedIndex` becomes `hd_wallet::HardenedIndex`.
+//!
+//! The functions for child wallet derivation has been moved. Derivation algorithm that is used
+//! in `slip_10` crate corresponds to `hd_wallet::slip10_like`. E.g. if you were deriving a child
+//! key using `slip_10::derive_child_public_key`, now you need to use `hd_wallet::slip10_like::derive_child_public_key`
+//! instead.
+//!
+//! If you have any problems with migration, don't hesitate to reach out to us [in Discord `#lockness` room](https://discordapp.com/channels/905194001349627914/1294284489635139585).
+//!
 //! </div>
 //!
 //! [SLIP10][slip10-spec] is a specification for implementing HD wallets. It aims at supporting many
