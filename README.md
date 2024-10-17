@@ -1,6 +1,6 @@
 # SLIP-10: Deterministic key generation
 
-> **Warning**
+> !Warning
 >
 > <div class="warning">
 >
@@ -22,8 +22,8 @@
 > instead.
 >
 > If you have any problems with migration, don't hesitate to reach out to us [in Discord `#lockness` room](https://discordapp.com/channels/905194001349627914/1294284489635139585).
-
-</div>
+>
+> </div>
 
 [SLIP10][slip10-spec] is a specification for implementing HD wallets. It aims at supporting many
 curves while being compatible with [BIP32][bip32-spec].
