@@ -1,11 +1,11 @@
 //! SLIP-10: Deterministic key generation
 //!
-//! > [!Warning]
-//! >
 //! > <div class="warning">
 //! >
+//! > **Warning**
+//! >
 //! > `slip-10` crate has been restructured and renamed into
-//! > [`hd-wallet`](https://crates.io/crates/hd-wallet)! `slip-10` is not likely
+//! > [`hd-wallet`](https://crates.io/crates/hd-wallet). `slip-10` is not likely
 //! > to receive any future updates. Please, consider switching to successor library.
 //! >
 //! > In order to migrate to the successor `hd-wallet v0.5`, include it into Cargo.toml:
