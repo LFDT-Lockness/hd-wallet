@@ -3,7 +3,7 @@
 //! <div class="warning">
 //!
 //! `slip-10` crate has been restructured and renamed into
-//! [`hd-wallet`](https://crates.io/crates/hd-wallet)! `slip-10` will not likely
+//! [`hd-wallet`](https://crates.io/crates/hd-wallet)! `slip-10` is not likely
 //! to receive any future updates. Please, consider switching to successor library.
 //!
 //! </div>
