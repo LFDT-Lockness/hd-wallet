@@ -59,6 +59,9 @@
 //! * `curve-secp256k1`, `curve-secp256r1`, `curve-ed25519` add curve implementation into the crate
 //!   [curves] module
 //!
+//! ## Join us in Discord!
+//! Feel free to reach out to us [in Discord](https://discordapp.com/channels/905194001349627914/1285268686147424388)!
+//!
 //! [slip10-spec]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
 //! [bip32-spec]: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
