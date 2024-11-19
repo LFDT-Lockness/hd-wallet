@@ -22,13 +22,16 @@ serde = { version = "1", default-features = false, features = ["derive"], option
 hex = "0.4"
 hex-literal = "0.4"
 rand = "0.8"
+rug = "1.26"
+
+generic-ec = { version = "0.4", default-features = false, features = ["curve-stark"] }
 
 [features]
 std = []
 curve-secp256k1 = ["generic-ec/curve-secp256k1"]
 curve-secp256r1 = ["generic-ec/curve-secp256r1"]
 curve-ed25519 = ["generic-ec/curve-ed25519"]
-all-curves = ["curve-secp256k1", "curve-secp256r1"]
+all-curves = ["curve-secp256k1", "curve-secp256r1", "curve-ed25519"]
 serde = ["dep:serde", "generic-ec/serde"]
 
 [[test]]
