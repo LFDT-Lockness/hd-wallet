@@ -11,10 +11,10 @@ repository = "https://github.com/LFDT-Lockness/hd-wallet"
 [dependencies]
 generic-ec = { version = "0.4", default-features = false }
 
-hmac = { version = "0.12", default-features = false }
-sha2 = { version = "0.10", default-features = false }
-subtle = { version = "2", default-features = false }
-generic-array = "0.14"
+hmac = { version = "0.12", default-features = false, optional = true }
+sha2 = { version = "0.10", default-features = false, optional = true }
+subtle = { version = "2", default-features = false, optional = true }
+generic-array = { version = "0.14", default-features = false, optional = true }
 
 serde = { version = "1", default-features = false, features = ["derive"], optional = true }
 
@@ -27,12 +27,23 @@ rug = "1.26"
 generic-ec = { version = "0.4", default-features = false, features = ["curve-stark"] }
 
 [features]
+default = []
 std = []
-curve-secp256k1 = ["generic-ec/curve-secp256k1"]
-curve-secp256r1 = ["generic-ec/curve-secp256r1"]
-curve-ed25519 = ["generic-ec/curve-ed25519"]
+# Adds support of secp256k1 curve to slip10 derivation
+curve-secp256k1 = ["generic-ec/curve-secp256k1", "slip10"]
+# Adds support of secp256r1 curve to slip10 derivation
+curve-secp256r1 = ["generic-ec/curve-secp256r1", "slip10"]
+# Enables Edwards-specific derivation
+curve-ed25519 = ["generic-ec/curve-ed25519", "edwards"]
 all-curves = ["curve-secp256k1", "curve-secp256r1", "curve-ed25519"]
 serde = ["dep:serde", "generic-ec/serde"]
+
+# Enables Slip10 derivation
+slip10 = ["hmac", "sha2", "generic-array", "subtle"]
+# Enables Edwards-specific derivation
+edwards = ["hmac", "sha2", "generic-array", "curve-ed25519"]
+# Enables Stark-specific derivation
+stark = []
 
 [[test]]
 name = "slip10_test_vector"
