@@ -18,8 +18,7 @@ type HmacSha512 = hmac::Hmac<sha2::Sha512>;
 /// HD derivation for Ed25519 curve
 ///
 /// This type of derivation isn't defined in any known to us standards, but it can be often
-/// found in other libraries. It is secure and efficient (much more efficient than using
-/// [`Slip10Like<Ed25519>`](Slip10Like), for instance).
+/// found in other libraries. It is secure and efficient.
 ///
 /// ## Example
 /// ```rust

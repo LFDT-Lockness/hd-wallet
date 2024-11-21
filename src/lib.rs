@@ -32,7 +32,7 @@
 //!
 //! [`HdWallet`] trait generalizes HD derivation algorithm, you can use it with generics:
 //! ```rust
-//! use hd_wallet::{Slip10Like, curves::Secp256r1};
+//! use hd_wallet::{Slip10, curves::Secp256r1};
 //!
 //! fn derive_using_generic_algo<E: generic_ec::Curve, Hd: hd_wallet::HdWallet<E>>(
 //!     master_key: hd_wallet::ExtendedKeyPair<E>,
@@ -48,7 +48,7 @@
 //! let seed = b"16-64 bytes of high entropy".as_slice();
 //! let master_key = hd_wallet::slip10::derive_master_key(seed)?;
 //! let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
-//! let child_key = derive_using_generic_algo::<Secp256r1, Slip10Like>(master_key_pair);
+//! let child_key = derive_using_generic_algo::<Secp256r1, Slip10>(master_key_pair);
 //!
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```

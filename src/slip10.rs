@@ -1,7 +1,7 @@
 //! SLIP10 derivation
 //!
-//! [SLIP10][slip10-spec] is a specification for implementing HD wallets. It aims at supporting many
-//! curves while being compatible with [BIP32][bip32-spec].
+//! [SLIP10][slip10-spec] is a specification for implementing HD wallets. It aims at supporting more
+//! curves than [BIP32][bip32-spec] while being compatible with it.
 //!
 //! Refer to [`Slip10`] docs to learn more about the derivation method.
 //!
@@ -21,31 +21,53 @@ use crate::{
 
 type HmacSha512 = hmac::Hmac<sha2::Sha512>;
 
-/// SLIP10-like HD wallet derivation
+/// [SLIP10][slip10-spec] HD wallet derivation
 ///
-/// `Slip10Like` is generalization of [`Slip10`], which is defined for any curve that meets
-/// constraints listed below.
+/// Performs HD derivation as defined in the spec. Only supports secp256k1 and secp256r1 curves.
 ///
-/// When `Slip10Like` is instantiated with secp256k1 or secp256r1 curves, it follows exactly
-/// SLIP10 derivation rules.
+/// ## Limitations
+/// We do not support SLIP10 instantiated with ed25519 or curve25519 due to the limitations.
+/// Ed25519 and curve25519 are special-cases in SLIP10 standard, they only support hardened
+/// derivation, and they operate on EdDSA and X25519 private keys instead of elliptic points
+/// and scalars as in other cases. This library only supports HD derivations in which
+/// secret keys are represented as scalars and public keys as points, see [`ExtendedSecretKey`]
+/// and [`ExtendedPublicKey`].
 ///
-/// ## Constraints
-/// `Slip10Like` must be used with curves which operate on 32 bytes scalars.
+/// If you need HD derivation on Ed25519 curve, we recommend using [`Edwards`] HD derivation,
+/// which supports both hardened and non-hardened derivation.
 ///
-/// `Slip10Like` is not recommended to be used with curves with order significantly lower
-/// than $2^{256}$ (e.g. ed25519) as it worsens the performance.
+/// ## Master key derivation from the seed
+/// [`slip10::derive_master_key`] can be used to derive a master key from the seed as defined
+/// in the spec.
 ///
-/// ### Ed25519 curve
-/// Although `Slip10Like` will work on ed25519 curve, we do not recommend using it, because:
-/// 1. it's confusing as ed25519 curve is defined in SLIP10, however,
-///    `Slip10Like<Ed25519>` will not follow SLIP10 standard
-/// 2. it's quite inefficient
+/// ## Example
+/// Derive a master key from the seed, and then derive a child key m/1<sub>H</sub>/10:
+/// ```rust
+/// use hd_wallet::{HdWallet, Slip10, curves::Secp256k1};
 ///
-/// Prefer using [`Edwards`] derivation method for ed25519 curve.
-pub struct Slip10Like;
+/// let seed = b"16-64 bytes of high entropy".as_slice();
+/// let master_key = hd_wallet::slip10::derive_master_key::<Secp256k1>(seed)?;
+/// let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
+///
+/// let child_key_pair = Slip10::derive_child_key_pair_with_path(
+///     &master_key_pair,
+///     [1 + hd_wallet::H, 10],
+/// );
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// [slip10-spec]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
+pub struct Slip10;
 
-impl<E: Curve> DeriveShift<E> for Slip10Like {
-    fn derive_public_shift(
+impl Slip10 {
+    /// Derives public shift for any curve, regardless whether it's in the slip10 spec
+    /// or not
+    ///
+    /// DO NOT use it with curves not specified in slip10. Other curves might be subject to
+    /// DoS attack: attacker may find inputs to HD derivation which would result in a lot of
+    /// iterations of HMAC-ing. Only curves from the spec are proven to be resistant to this
+    /// attack.
+    fn derive_public_shift_for_any_curve<E: Curve>(
         parent_public_key: &ExtendedPublicKey<E>,
         child_index: NonHardenedIndex,
     ) -> DerivedShift<E> {
@@ -57,10 +79,17 @@ impl<E: Curve> DeriveShift<E> for Slip10Like {
             .chain_update(child_index.to_be_bytes())
             .finalize()
             .into_bytes();
-        Self::calculate_shift(&hmac, parent_public_key, *child_index, i)
+        Self::calculate_shift_for_any_curve(&hmac, parent_public_key, *child_index, i)
     }
 
-    fn derive_hardened_shift(
+    /// Derives hardened shift for any curve, regardless whether it's in the slip10 spec
+    /// or not
+    ///
+    /// DO NOT use it with curves not specified in slip10. Other curves might be subject to
+    /// DoS attack: attacker may find inputs to HD derivation which would result in a lot of
+    /// iterations of HMAC-ing. Only curves from the spec are proven to be resistant to this
+    /// attack.
+    fn derive_hardened_shift_for_any_curve<E: Curve>(
         parent_key: &ExtendedKeyPair<E>,
         child_index: HardenedIndex,
     ) -> DerivedShift<E> {
@@ -73,12 +102,10 @@ impl<E: Curve> DeriveShift<E> for Slip10Like {
             .chain_update(child_index.to_be_bytes())
             .finalize()
             .into_bytes();
-        Self::calculate_shift(&hmac, &parent_key.public_key, *child_index, i)
+        Self::calculate_shift_for_any_curve(&hmac, &parent_key.public_key, *child_index, i)
     }
-}
 
-impl Slip10Like {
-    fn calculate_shift<E: Curve>(
+    fn calculate_shift_for_any_curve<E: Curve>(
         hmac: &HmacSha512,
         parent_public_key: &ExtendedPublicKey<E>,
         child_index: u32,
@@ -121,76 +148,21 @@ fn split_into_two_halves(
     generic_array::sequence::Split::split(i)
 }
 
-/// [SLIP10][slip10-spec] HD wallet derivation
-///
-/// Performs HD derivation as defined in the spec. Only supports secp256k1 and secp256r1 curves.
-///
-/// ## Limitations
-/// We do not support SLIP10 instantiated with ed25519 or curve25519 due to the limitations.
-/// Ed25519 and curve25519 are special-cases in SLIP10 standard, they only support hardened
-/// derivation, and they operate on EdDSA and X25519 private keys instead of elliptic points
-/// and scalars as in other cases. This library only supports HD derivations in which
-/// secret keys are represented as scalars and public keys as points, see [`ExtendedSecretKey`]
-/// and [`ExtendedPublicKey`].
-///
-/// If you need HD derivation on Ed25519 curve, we recommend using [`Edwards`] HD derivation,
-/// which supports both hardened and non-hardened derivation.
-///
-/// ## Master key derivation from the seed
-/// [`slip10::derive_master_key`] can be used to derive a master key from the seed as defined
-/// in the spec.
-///
-/// ## Example
-/// Derive a master key from the seed, and then derive a child key m/1<sub>H</sub>/10:
-/// ```rust
-/// use hd_wallet::{HdWallet, Slip10, curves::Secp256k1};
-///
-/// let seed = b"16-64 bytes of high entropy".as_slice();
-/// let master_key = hd_wallet::slip10::derive_master_key::<Secp256k1>(seed)?;
-/// let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
-///
-/// let child_key_pair = Slip10::derive_child_key_pair_with_path(
-///     &master_key_pair,
-///     [1 + hd_wallet::H, 10],
-/// );
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
-///
-/// ## SLIP10-like derivation
-/// SLIP10 is only defined for a few curves, but it can be extended to support any curve.
-/// See [`Slip10Like`] if you need other curves than is supported by SLIP10.
-///
-/// [slip10-spec]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
-pub struct Slip10;
-
-#[cfg(feature = "curve-secp256k1")]
-impl DeriveShift<generic_ec::curves::Secp256k1> for Slip10 {
+impl<E> DeriveShift<E> for Slip10
+where
+    E: Curve + SupportedCurve,
+{
     fn derive_public_shift(
-        parent_public_key: &ExtendedPublicKey<generic_ec::curves::Secp256k1>,
+        parent_public_key: &ExtendedPublicKey<E>,
         child_index: NonHardenedIndex,
-    ) -> DerivedShift<generic_ec::curves::Secp256k1> {
-        Slip10Like::derive_public_shift(parent_public_key, child_index)
+    ) -> DerivedShift<E> {
+        Slip10::derive_public_shift_for_any_curve(parent_public_key, child_index)
     }
     fn derive_hardened_shift(
-        parent_key: &ExtendedKeyPair<generic_ec::curves::Secp256k1>,
+        parent_key: &ExtendedKeyPair<E>,
         child_index: HardenedIndex,
-    ) -> DerivedShift<generic_ec::curves::Secp256k1> {
-        Slip10Like::derive_hardened_shift(parent_key, child_index)
-    }
-}
-#[cfg(feature = "curve-secp256r1")]
-impl DeriveShift<generic_ec::curves::Secp256r1> for Slip10 {
-    fn derive_public_shift(
-        parent_public_key: &ExtendedPublicKey<generic_ec::curves::Secp256r1>,
-        child_index: NonHardenedIndex,
-    ) -> DerivedShift<generic_ec::curves::Secp256r1> {
-        Slip10Like::derive_public_shift(parent_public_key, child_index)
-    }
-    fn derive_hardened_shift(
-        parent_key: &ExtendedKeyPair<generic_ec::curves::Secp256r1>,
-        child_index: HardenedIndex,
-    ) -> DerivedShift<generic_ec::curves::Secp256r1> {
-        Slip10Like::derive_hardened_shift(parent_key, child_index)
+    ) -> DerivedShift<E> {
+        Slip10::derive_hardened_shift_for_any_curve(parent_key, child_index)
     }
 }
 
