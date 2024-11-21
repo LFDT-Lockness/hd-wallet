@@ -42,6 +42,10 @@ required-features = ["curve-secp256k1", "curve-secp256r1"]
 name = "edwards_test_vector"
 required-features = ["curve-ed25519"]
 
+[[example]]
+name = "curves_analysis"
+required-features = ["all-curves"]
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs", "--html-in-header", "katex-header.html"]
