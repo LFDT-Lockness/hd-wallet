@@ -33,11 +33,13 @@ type HmacSha512 = hmac::Hmac<sha2::Sha512>;
 /// secret keys are represented as scalars and public keys as points, see [`ExtendedSecretKey`]
 /// and [`ExtendedPublicKey`].
 ///
-/// If you need HD derivation on Ed25519 curve, we recommend using [`Edwards`] HD derivation,
-/// which supports both hardened and non-hardened derivation.
+/// [`ExtendedSecretKey`]: crate::ExtendedSecretKey
+///
+/// If you need HD derivation on Ed25519 curve, we recommend using [`Edwards`](crate::Edwards) HD
+/// derivation, which supports both hardened and non-hardened derivation.
 ///
 /// ## Master key derivation from the seed
-/// [`slip10::derive_master_key`] can be used to derive a master key from the seed as defined
+/// [`derive_master_key`] can be used to derive a master key from the seed as defined
 /// in the spec.
 ///
 /// ## Example

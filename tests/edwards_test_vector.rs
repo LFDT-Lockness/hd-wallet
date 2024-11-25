@@ -15,6 +15,8 @@ struct Derivation {
     expected_public_key: [u8; 32],
 }
 
+/// These test vectors were obtained by running HD derivation in another library
+/// that implements edwards HD derivation
 const TEST_VECTORS: &[TestVector] = &[TestVector {
     root_secret_key: hex!("09ba1ad29fabe87a0cf23fec142db2adfb8f9e7089928000dcba5714e08236ec"),
     root_public_key: hex!("6fa093b0e855f5fdb40d77f6efe9b67b709092a71d73f35de6afc70cac40d57a"),

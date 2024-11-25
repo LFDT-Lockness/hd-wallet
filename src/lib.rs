@@ -80,11 +80,15 @@ pub mod edwards;
 pub mod errors;
 #[cfg(feature = "slip10")]
 pub mod slip10;
+#[cfg(feature = "stark")]
+pub mod stark;
 
 #[cfg(feature = "edwards")]
 pub use edwards::Edwards;
 #[cfg(feature = "slip10")]
 pub use slip10::Slip10;
+#[cfg(feature = "stark")]
+pub use stark::Stark;
 
 /// Beginning of hardened child indexes
 ///

@@ -49,7 +49,6 @@ impl DeriveShift<curves::Ed25519> for Edwards {
         let hmac = HmacSha512::new_from_slice(&parent_public_key.chain_code)
             .expect("this never fails: hmac can handle keys of any size");
         let i = hmac
-            .clone()
             .chain_update(parent_public_key.public_key.to_bytes(true))
             // we append 0 byte to the public key for compatibility with other libs
             .chain_update([0x00])
@@ -66,7 +65,6 @@ impl DeriveShift<curves::Ed25519> for Edwards {
         let hmac = HmacSha512::new_from_slice(parent_key.chain_code())
             .expect("this never fails: hmac can handle keys of any size");
         let i = hmac
-            .clone()
             .chain_update([0x00])
             .chain_update(parent_key.secret_key.secret_key.as_ref().to_be_bytes())
             .chain_update(child_index.to_be_bytes())

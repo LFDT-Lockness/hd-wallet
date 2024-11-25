@@ -35,26 +35,36 @@ curve-secp256k1 = ["generic-ec/curve-secp256k1", "slip10"]
 curve-secp256r1 = ["generic-ec/curve-secp256r1", "slip10"]
 # Enables Edwards-specific derivation
 curve-ed25519 = ["generic-ec/curve-ed25519", "edwards"]
+# Enables Stark-specific derivation
+curve-stark = ["generic-ec/curve-stark", "stark"]
 all-curves = ["curve-secp256k1", "curve-secp256r1", "curve-ed25519"]
 serde = ["dep:serde", "generic-ec/serde"]
 
 # Enables Slip10 derivation
-slip10 = ["hmac", "sha2", "generic-array", "subtle"]
+slip10 = ["subtle", "hmac", "sha2", "generic-array"]
 # Enables Edwards-specific derivation
-edwards = ["hmac", "sha2", "generic-array", "curve-ed25519"]
+edwards = ["curve-ed25519", "hmac", "sha2", "generic-array"]
 # Enables Stark-specific derivation
-stark = []
+stark = ["curve-stark", "hmac", "sha2", "generic-array"]
 
 [[test]]
 name = "slip10_test_vector"
-required-features = ["curve-secp256k1", "curve-secp256r1"]
+required-features = ["slip10", "curve-secp256k1", "curve-secp256r1"]
 
 [[test]]
 name = "edwards_test_vector"
-required-features = ["curve-ed25519"]
+required-features = ["edwards"]
+
+[[test]]
+name = "stark_test_vector"
+required-features = ["stark"]
 
 [[example]]
 name = "curves_analysis"
+required-features = ["all-curves"]
+
+[[example]]
+name = "generate_test_vectors"
 required-features = ["all-curves"]
 
 [package.metadata.docs.rs]
