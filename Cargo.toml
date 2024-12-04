@@ -1,6 +1,6 @@
 [package]
 name = "hd-wallet"
-version = "0.5.1"
+version = "0.6.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "HD wallets derivation"
@@ -11,10 +11,10 @@ repository = "https://github.com/LFDT-Lockness/hd-wallet"
 [dependencies]
 generic-ec = { version = "0.4", default-features = false }
 
-hmac = { version = "0.12", default-features = false }
-sha2 = { version = "0.10", default-features = false }
-subtle = { version = "2", default-features = false }
-generic-array = "0.14"
+hmac = { version = "0.12", default-features = false, optional = true }
+sha2 = { version = "0.10", default-features = false, optional = true }
+subtle = { version = "2", default-features = false, optional = true }
+generic-array = { version = "0.14", default-features = false, optional = true }
 
 serde = { version = "1", default-features = false, features = ["derive"], optional = true }
 
@@ -22,22 +22,50 @@ serde = { version = "1", default-features = false, features = ["derive"], option
 hex = "0.4"
 hex-literal = "0.4"
 rand = "0.8"
+rug = "1.26"
+
+generic-ec = { version = "0.4", default-features = false, features = ["curve-stark"] }
 
 [features]
+default = []
 std = []
-curve-secp256k1 = ["generic-ec/curve-secp256k1"]
-curve-secp256r1 = ["generic-ec/curve-secp256r1"]
-curve-ed25519 = ["generic-ec/curve-ed25519"]
-all-curves = ["curve-secp256k1", "curve-secp256r1"]
+# Adds support of secp256k1 curve to slip10 derivation
+curve-secp256k1 = ["generic-ec/curve-secp256k1", "slip10"]
+# Adds support of secp256r1 curve to slip10 derivation
+curve-secp256r1 = ["generic-ec/curve-secp256r1", "slip10"]
+# Enables Edwards-specific derivation
+curve-ed25519 = ["generic-ec/curve-ed25519", "edwards"]
+# Enables Stark-specific derivation
+curve-stark = ["generic-ec/curve-stark", "stark"]
+all-curves = ["curve-secp256k1", "curve-secp256r1", "curve-ed25519"]
 serde = ["dep:serde", "generic-ec/serde"]
+
+# Enables Slip10 derivation
+slip10 = ["subtle", "hmac", "sha2", "generic-array"]
+# Enables Edwards-specific derivation
+edwards = ["curve-ed25519", "hmac", "sha2", "generic-array"]
+# Enables Stark-specific derivation
+stark = ["curve-stark", "hmac", "sha2", "generic-array"]
 
 [[test]]
 name = "slip10_test_vector"
-required-features = ["curve-secp256k1", "curve-secp256r1"]
+required-features = ["slip10", "curve-secp256k1", "curve-secp256r1"]
 
 [[test]]
 name = "edwards_test_vector"
-required-features = ["curve-ed25519"]
+required-features = ["edwards"]
+
+[[test]]
+name = "stark_test_vector"
+required-features = ["stark"]
+
+[[example]]
+name = "curves_analysis"
+required-features = ["all-curves"]
+
+[[example]]
+name = "generate_test_vectors"
+required-features = ["all-curves"]
 
 [package.metadata.docs.rs]
 all-features = true

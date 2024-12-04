@@ -1,7 +1,7 @@
 //! SLIP10 derivation
 //!
-//! [SLIP10][slip10-spec] is a specification for implementing HD wallets. It aims at supporting many
-//! curves while being compatible with [BIP32][bip32-spec].
+//! [SLIP10][slip10-spec] is a specification for implementing HD wallets. It aims at supporting more
+//! curves than [BIP32][bip32-spec] while being compatible with it.
 //!
 //! Refer to [`Slip10`] docs to learn more about the derivation method.
 //!
@@ -12,9 +12,161 @@
 //! [slip10-spec]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
 //! [bip32-spec]: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
+use generic_ec::{Curve, Point, Scalar};
 use hmac::Mac as _;
 
-pub use crate::Slip10;
+use crate::{
+    DeriveShift, DerivedShift, ExtendedKeyPair, ExtendedPublicKey, HardenedIndex, NonHardenedIndex,
+};
+
+type HmacSha512 = hmac::Hmac<sha2::Sha512>;
+
+/// [SLIP10][slip10-spec] HD wallet derivation
+///
+/// Performs HD derivation as defined in the spec. Only supports secp256k1 and secp256r1 curves.
+///
+/// ## Limitations
+/// We do not support SLIP10 instantiated with ed25519 or curve25519 due to the limitations.
+/// Ed25519 and curve25519 are special-cases in SLIP10 standard, they only support hardened
+/// derivation, and they operate on EdDSA and X25519 private keys instead of elliptic points
+/// and scalars as in other cases. This library only supports HD derivations in which
+/// secret keys are represented as scalars and public keys as points, see [`ExtendedSecretKey`]
+/// and [`ExtendedPublicKey`].
+///
+/// [`ExtendedSecretKey`]: crate::ExtendedSecretKey
+///
+/// If you need HD derivation on Ed25519 curve, we recommend using [`Edwards`](crate::Edwards) HD
+/// derivation, which supports both hardened and non-hardened derivation.
+///
+/// ## Master key derivation from the seed
+/// [`derive_master_key`] can be used to derive a master key from the seed as defined
+/// in the spec.
+///
+/// ## Example
+/// Derive a master key from the seed, and then derive a child key m/1<sub>H</sub>/10:
+/// ```rust
+/// use hd_wallet::{HdWallet, Slip10, curves::Secp256k1};
+///
+/// let seed = b"16-64 bytes of high entropy".as_slice();
+/// let master_key = hd_wallet::slip10::derive_master_key::<Secp256k1>(seed)?;
+/// let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
+///
+/// let child_key_pair = Slip10::derive_child_key_pair_with_path(
+///     &master_key_pair,
+///     [1 + hd_wallet::H, 10],
+/// );
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// [slip10-spec]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
+pub struct Slip10;
+
+impl Slip10 {
+    /// Derives public shift for any curve, regardless whether it's in the slip10 spec
+    /// or not
+    ///
+    /// DO NOT use it with curves not specified in slip10. Other curves might be subject to
+    /// DoS attack: attacker may find inputs to HD derivation which would result in a lot of
+    /// iterations of HMAC-ing. Only curves from the spec are proven to be resistant to this
+    /// attack.
+    fn derive_public_shift_for_any_curve<E: Curve>(
+        parent_public_key: &ExtendedPublicKey<E>,
+        child_index: NonHardenedIndex,
+    ) -> DerivedShift<E> {
+        let hmac = HmacSha512::new_from_slice(&parent_public_key.chain_code)
+            .expect("this never fails: hmac can handle keys of any size");
+        let i = hmac
+            .clone()
+            .chain_update(parent_public_key.public_key.to_bytes(true))
+            .chain_update(child_index.to_be_bytes())
+            .finalize()
+            .into_bytes();
+        Self::calculate_shift_for_any_curve(&hmac, parent_public_key, *child_index, i)
+    }
+
+    /// Derives hardened shift for any curve, regardless whether it's in the slip10 spec
+    /// or not
+    ///
+    /// DO NOT use it with curves not specified in slip10. Other curves might be subject to
+    /// DoS attack: attacker may find inputs to HD derivation which would result in a lot of
+    /// iterations of HMAC-ing. Only curves from the spec are proven to be resistant to this
+    /// attack.
+    fn derive_hardened_shift_for_any_curve<E: Curve>(
+        parent_key: &ExtendedKeyPair<E>,
+        child_index: HardenedIndex,
+    ) -> DerivedShift<E> {
+        let hmac = HmacSha512::new_from_slice(parent_key.chain_code())
+            .expect("this never fails: hmac can handle keys of any size");
+        let i = hmac
+            .clone()
+            .chain_update([0x00])
+            .chain_update(parent_key.secret_key.secret_key.as_ref().to_be_bytes())
+            .chain_update(child_index.to_be_bytes())
+            .finalize()
+            .into_bytes();
+        Self::calculate_shift_for_any_curve(&hmac, &parent_key.public_key, *child_index, i)
+    }
+
+    fn calculate_shift_for_any_curve<E: Curve>(
+        hmac: &HmacSha512,
+        parent_public_key: &ExtendedPublicKey<E>,
+        child_index: u32,
+        mut i: hmac::digest::Output<HmacSha512>,
+    ) -> DerivedShift<E> {
+        loop {
+            let (i_left, i_right) = split_into_two_halves(&i);
+
+            if let Ok(shift) = Scalar::<E>::from_be_bytes(i_left) {
+                let child_pk = parent_public_key.public_key + Point::generator() * shift;
+                if !child_pk.is_zero() {
+                    return DerivedShift {
+                        shift,
+                        child_public_key: ExtendedPublicKey {
+                            public_key: child_pk,
+                            chain_code: (*i_right).into(),
+                        },
+                    };
+                }
+            }
+
+            i = hmac
+                .clone()
+                .chain_update([0x01])
+                .chain_update(i_right)
+                .chain_update(child_index.to_be_bytes())
+                .finalize()
+                .into_bytes()
+        }
+    }
+}
+
+/// Splits array `I` of 64 bytes into two arrays `I_L = I[..32]` and `I_R = I[32..]`
+fn split_into_two_halves(
+    i: &generic_array::GenericArray<u8, generic_array::typenum::U64>,
+) -> (
+    &generic_array::GenericArray<u8, generic_array::typenum::U32>,
+    &generic_array::GenericArray<u8, generic_array::typenum::U32>,
+) {
+    generic_array::sequence::Split::split(i)
+}
+
+impl<E> DeriveShift<E> for Slip10
+where
+    E: Curve + SupportedCurve,
+{
+    fn derive_public_shift(
+        parent_public_key: &ExtendedPublicKey<E>,
+        child_index: NonHardenedIndex,
+    ) -> DerivedShift<E> {
+        Slip10::derive_public_shift_for_any_curve(parent_public_key, child_index)
+    }
+    fn derive_hardened_shift(
+        parent_key: &ExtendedKeyPair<E>,
+        child_index: HardenedIndex,
+    ) -> DerivedShift<E> {
+        Slip10::derive_hardened_shift_for_any_curve(parent_key, child_index)
+    }
+}
 
 /// Marker for a curve supported by SLIP10 specs and this library
 ///
@@ -79,12 +231,12 @@ pub fn derive_master_key_with_curve_tag<E: generic_ec::Curve>(
         return Err(crate::errors::InvalidLength);
     }
 
-    let hmac = crate::HmacSha512::new_from_slice(curve_tag)
+    let hmac = HmacSha512::new_from_slice(curve_tag)
         .expect("this never fails: hmac can handle keys of any size");
     let mut i = hmac.clone().chain_update(seed).finalize().into_bytes();
 
     loop {
-        let (i_left, i_right) = crate::split_into_two_halves(&i);
+        let (i_left, i_right) = split_into_two_halves(&i);
 
         if let Ok(mut sk) = generic_ec::Scalar::<E>::from_be_bytes(i_left) {
             if !bool::from(subtle::ConstantTimeEq::ct_eq(

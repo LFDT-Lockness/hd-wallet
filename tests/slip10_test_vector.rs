@@ -347,7 +347,7 @@ fn run_vector<E: Curve + hd_wallet::slip10::SupportedCurve>(v: &TestVector) {
     let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
 
     for derivation in v.derivations {
-        let key = hd_wallet::Slip10Like::derive_child_key_pair_with_path(
+        let key = hd_wallet::Slip10::derive_child_key_pair_with_path(
             &master_key_pair,
             derivation.path.iter().copied(),
         );

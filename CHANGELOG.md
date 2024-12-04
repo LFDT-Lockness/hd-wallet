@@ -1,5 +1,13 @@
 # hd-wallet crate changelog
 
+## v0.6.0
+* Remove slip10-like derivation that can be instantiated with any curve: it is very inefficient
+  when instantiated with certain curves, and may also enable attacker to perform DoS attack by
+  finding derivation path that results into very long computation [#14]
+* Add stark-specific derivation: secure and efficient derivation for stark curve [#14]
+
+[#14]: https://github.com/LFDT-Lockness/hd-wallet/pull/14
+
 ## v0.5.1
 * Update docs and repo link [#11]
 

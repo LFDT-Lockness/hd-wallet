@@ -9,7 +9,7 @@ env:
   CARGO_NET_GIT_FETCH_WITH_CLI: true
 
 jobs:
-  build-no-features:
+  check-no-features:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -17,8 +17,25 @@ jobs:
       with:
         cache-on-failure: "true"
     - name: Build
-      run: cargo build 
-  build-and-test-all-features:
+      run: cargo check --no-default-features 
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        features:
+        - slip10
+        - slip10,curve-secp256k1
+        - slip10,curve-secp256r1
+        - edwards
+        - stark
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: "true"
+    - name: Build
+      run: cargo check --features ${{ matrix.features }} 
+  check-and-test-all-features:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -26,7 +43,7 @@ jobs:
       with:
         cache-on-failure: "true"
     - name: Build
-      run: cargo build --all-features
+      run: cargo check --all-features
     - name: Run tests
       run: cargo test --all-features --lib --tests
   doctest:
