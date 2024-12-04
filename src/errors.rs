@@ -12,8 +12,7 @@ impl fmt::Display for InvalidLength {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for InvalidLength {}
+impl core::error::Error for InvalidLength {}
 
 /// Value was out of range
 #[derive(Debug)]
@@ -25,8 +24,7 @@ impl fmt::Display for OutOfRange {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for OutOfRange {}
+impl core::error::Error for OutOfRange {}
 
 /// Error returned by parsing child index
 #[derive(Debug)]
@@ -46,9 +44,8 @@ impl fmt::Display for ParseChildIndexError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for ParseChildIndexError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl core::error::Error for ParseChildIndexError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         match self {
             ParseChildIndexError::ParseInt(e) => Some(e),
             ParseChildIndexError::IndexNotInRange(e) => Some(e),

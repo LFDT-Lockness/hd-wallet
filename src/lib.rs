@@ -54,10 +54,11 @@
 //! ```
 //!
 //! ### Features
-//! * `std`: enables std library support (mainly, it just implements [`Error`](std::error::Error)
-//!   trait for the error types)
-//! * `curve-secp256k1`, `curve-secp256r1`, `curve-ed25519` add curve implementation into the crate
-//!   [curves] module
+//! * `curve-secp256k1`, `curve-secp256r1`, `curve-ed25519`, `curve-stark` add curve implementation
+//!    into the crate [curves] module
+//! * `all-curves` adds all curves listed above
+//! * `slip10`, `edwards`, `stark` add [`slip10`], [`edwards`], and [`stark`] HD derivations respectively
+//! * `serde` adds `serde::{Serialize, Deserialize}` traits implementation to the types in the library
 //!
 //! ## Join us in Discord!
 //! Feel free to reach out to us [in Discord](https://discordapp.com/channels/905194001349627914/1285268686147424388)!
@@ -65,7 +66,7 @@
 //! [slip10-spec]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
 //! [bip32-spec]: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
 #![forbid(missing_docs, unsafe_code)]
 #![cfg_attr(not(test), forbid(unused_crate_dependencies))]
 
