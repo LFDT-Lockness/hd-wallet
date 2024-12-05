@@ -28,7 +28,6 @@ generic-ec = { version = "0.4", default-features = false, features = ["curve-sta
 
 [features]
 default = []
-std = []
 # Adds support of secp256k1 curve to slip10 derivation
 curve-secp256k1 = ["generic-ec/curve-secp256k1", "slip10"]
 # Adds support of secp256r1 curve to slip10 derivation
@@ -37,7 +36,7 @@ curve-secp256r1 = ["generic-ec/curve-secp256r1", "slip10"]
 curve-ed25519 = ["generic-ec/curve-ed25519", "edwards"]
 # Enables Stark-specific derivation
 curve-stark = ["generic-ec/curve-stark", "stark"]
-all-curves = ["curve-secp256k1", "curve-secp256r1", "curve-ed25519"]
+all-curves = ["curve-secp256k1", "curve-secp256r1", "curve-ed25519", "curve-stark"]
 serde = ["dep:serde", "generic-ec/serde"]
 
 # Enables Slip10 derivation

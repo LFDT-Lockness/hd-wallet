@@ -52,10 +52,11 @@ let child_key = derive_using_generic_algo::<Secp256r1, Slip10>(master_key_pair);
 ```
 
 ### Features
-* `std`: enables std library support (mainly, it just implements `Error`
-  trait for the error types)
-* `curve-secp256k1`, `curve-secp256r1`, `curve-ed25519` add curve implementation into the crate
-  curves module
+* `curve-secp256k1`, `curve-secp256r1`, `curve-ed25519`, `curve-stark` add curve implementation
+   into the crate curves module
+* `all-curves` adds all curves listed above
+* `slip10`, `edwards`, `stark` add `slip10`, `edwards`, and `stark` HD derivations respectively
+* `serde` adds `serde::{Serialize, Deserialize}` traits implementation to the types in the library
 
 ## Join us in Discord!
 Feel free to reach out to us [in Discord](https://discordapp.com/channels/905194001349627914/1285268686147424388)!
