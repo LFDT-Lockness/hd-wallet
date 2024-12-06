@@ -1,5 +1,10 @@
 # hd-wallet crate changelog
 
+## v0.6.1
+* Add aliases for stark derivation in `hd_wallet::stark` module [#17]
+
+[#17]: https://github.com/LFDT-Lockness/hd-wallet/pull/17
+
 ## v0.6.0
 * BREAKING: Remove slip10-like derivation that can be instantiated with any curve: it is very inefficient
   when instantiated with certain curves, and may also enable attacker to perform DoS attack by
