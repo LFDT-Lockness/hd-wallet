@@ -130,3 +130,5 @@ fn split(
 ) {
     generic_array::sequence::Split::split(i)
 }
+
+super::create_aliases!(Stark, stark, hd_wallet::curves::Stark);
