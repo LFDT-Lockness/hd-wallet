@@ -1,5 +1,10 @@
 # hd-wallet crate changelog
 
+## v0.7.0
+* Update `generic-ec` to `v0.5` [#19]
+
+[#19]: https://github.com/LFDT-Lockness/hd-wallet/pull/19
+
 ## v0.6.1
 * Add aliases for stark derivation in `hd_wallet::stark` module [#17]
 
