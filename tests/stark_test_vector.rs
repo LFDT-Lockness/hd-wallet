@@ -89,7 +89,7 @@ const TEST_VECTORS: &[TestVector] = &[TestVector {
         },
         // Hardened derivation
         Derivation {
-            path: &[0 + hd_wallet::H],
+            path: &[hd_wallet::H],
             expected_secret_key: hex!(
                 "0075fc3585d3bedd04c7cd0d7fe871f3e52d5ab9c4bfcc6cc626957cbe45545c"
             ),
@@ -166,7 +166,7 @@ const TEST_VECTORS: &[TestVector] = &[TestVector {
 fn test_vectors() {
     for vector in TEST_VECTORS {
         let mut root_sk =
-            generic_ec::Scalar::<generic_ec::curves::Stark>::from_be_bytes(&vector.root_secret_key)
+            generic_ec::Scalar::<generic_ec::curves::Stark>::from_be_bytes(vector.root_secret_key)
                 .expect("invalid root_sk");
         let root_sk = generic_ec::SecretScalar::new(&mut root_sk);
 

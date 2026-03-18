@@ -55,7 +55,7 @@
 //!
 //! ### Features
 //! * `curve-secp256k1`, `curve-secp256r1`, `curve-ed25519`, `curve-stark` add curve implementation
-//!    into the crate [curves] module
+//!   into the crate [curves] module
 //! * `all-curves` adds all curves listed above
 //! * `slip10`, `edwards`, `stark` add [`slip10`], [`edwards`], and [`stark`] HD derivations respectively
 //! * `serde` adds `serde::{Serialize, Deserialize}` traits implementation to the types in the library
@@ -352,7 +352,7 @@ impl<'de, E: Curve> serde::Deserialize<'de> for ExtendedKeyPair<E> {
 
 /// * `$t` - type to monomorphise for, like `Slip10` or `Edwards`
 /// * `$m` - current module, module where these functions will appear. Used in doc
-///    tests only
+///   tests only
 /// * `$e` - curve supported by this HD derivation, used in doc tests only
 #[cfg(any(feature = "slip10", feature = "edwards", feature = "stark"))]
 macro_rules! create_aliases {
