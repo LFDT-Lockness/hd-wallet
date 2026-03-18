@@ -9,7 +9,7 @@ repository = "https://github.com/LFDT-Lockness/hd-wallet"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-generic-ec = { version = "0.4", default-features = false }
+generic-ec = { version = "0.5", default-features = false }
 
 hmac = { version = "0.12", default-features = false, optional = true }
 sha2 = { version = "0.10", default-features = false, optional = true }
@@ -24,7 +24,7 @@ hex-literal = "0.4"
 rand = "0.8"
 rug = "1.26"
 
-generic-ec = { version = "0.4", default-features = false, features = ["curve-stark"] }
+generic-ec = { version = "0.5", default-features = false, features = ["curve-stark"] }
 
 [features]
 default = []
@@ -69,3 +69,7 @@ required-features = ["all-curves"]
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs", "--html-in-header", "katex-header.html"]
+
+[patch.crates-io.generic-ec]
+git = "https://github.com/sridhar-panigrahi/generic-ec.git"
+rev = "5168020e97af1148f5703ad5c5b8b35c98511a8d"
