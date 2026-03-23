@@ -36,7 +36,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + hd_wallet::H],
+                path: &[hd_wallet::H],
                 expected_chain_code: hex!(
                     "47fdacbd0f1097043b78c63c20c34ef4ed9a111d980047ad16282c7ae6236141"
                 ),
@@ -48,7 +48,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + hd_wallet::H, 1],
+                path: &[hd_wallet::H, 1],
                 expected_chain_code: hex!(
                     "2a7857631386ba23dacac34180dd1983734e444fdbf774041578e9b6adb37c19"
                 ),
@@ -60,7 +60,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + hd_wallet::H, 1, 2 + hd_wallet::H],
+                path: &[hd_wallet::H, 1, 2 + hd_wallet::H],
                 expected_chain_code: hex!(
                     "04466b9cc8e161e966409ca52986c584f07e9dc81f735db683c3ff6ec7b1503f"
                 ),
@@ -72,7 +72,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + hd_wallet::H, 1, 2 + hd_wallet::H, 2],
+                path: &[hd_wallet::H, 1, 2 + hd_wallet::H, 2],
                 expected_chain_code: hex!(
                     "cfb71883f01676f587d023cc53a35bc7f88f724b1f8c2892ac1275ac822a3edd"
                 ),
@@ -84,7 +84,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + hd_wallet::H, 1, 2 + hd_wallet::H, 2, 1000000000],
+                path: &[hd_wallet::H, 1, 2 + hd_wallet::H, 2, 1000000000],
                 expected_chain_code: hex!(
                     "c783e67b921d2beb8f6b389cc646d7263b4145701dadd2161548a8b078e65e9e"
                 ),
@@ -115,7 +115,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + hd_wallet::H],
+                path: &[hd_wallet::H],
                 expected_chain_code: hex!(
                     "3460cea53e6a6bb5fb391eeef3237ffd8724bf0a40e94943c98b83825342ee11"
                 ),
@@ -127,7 +127,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + hd_wallet::H, 1],
+                path: &[hd_wallet::H, 1],
                 expected_chain_code: hex!(
                     "4187afff1aafa8445010097fb99d23aee9f599450c7bd140b6826ac22ba21d0c"
                 ),
@@ -139,7 +139,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + hd_wallet::H, 1, 2 + hd_wallet::H],
+                path: &[hd_wallet::H, 1, 2 + hd_wallet::H],
                 expected_chain_code: hex!(
                     "98c7514f562e64e74170cc3cf304ee1ce54d6b6da4f880f313e8204c2a185318"
                 ),
@@ -151,7 +151,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + hd_wallet::H, 1, 2 + hd_wallet::H, 2],
+                path: &[hd_wallet::H, 1, 2 + hd_wallet::H, 2],
                 expected_chain_code: hex!(
                     "ba96f776a5c3907d7fd48bde5620ee374d4acfd540378476019eab70790c63a0"
                 ),
@@ -163,7 +163,7 @@ const TEST_VECTORS: &[TestVector] = &[
                 ),
             },
             Derivation {
-                path: &[0 + hd_wallet::H, 1, 2 + hd_wallet::H, 2, 1000000000],
+                path: &[hd_wallet::H, 1, 2 + hd_wallet::H, 2, 1000000000],
                 expected_chain_code: hex!(
                     "b9b7b82d326bb9cb5b5b121066feea4eb93d5241103c9e7a18aad40f1dde8059"
                 ),
@@ -343,7 +343,7 @@ fn test_vectors() {
 fn run_vector<E: Curve + hd_wallet::slip10::SupportedCurve>(v: &TestVector) {
     use hd_wallet::HdWallet;
 
-    let master_key = hd_wallet::slip10::derive_master_key::<E>(&v.seed).unwrap();
+    let master_key = hd_wallet::slip10::derive_master_key::<E>(v.seed).unwrap();
     let master_key_pair = hd_wallet::ExtendedKeyPair::from(master_key);
 
     for derivation in v.derivations {
