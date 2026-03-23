@@ -69,7 +69,3 @@ required-features = ["all-curves"]
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs", "--html-in-header", "katex-header.html"]
-
-[patch.crates-io.generic-ec]
-git = "https://github.com/sridhar-panigrahi/generic-ec.git"
-rev = "5168020e97af1148f5703ad5c5b8b35c98511a8d"
