@@ -1,7 +1,8 @@
 ![License](https://img.shields.io/crates/l/hd-wallet.svg)
 [![Docs](https://docs.rs/hd-wallet/badge.svg)](https://docs.rs/hd-wallet)
 [![Crates io](https://img.shields.io/crates/v/hd-wallet.svg)](https://crates.io/crates/hd-wallet)
-[![Discord](https://img.shields.io/discord/905194001349627914?logo=discord&logoColor=ffffff&label=Discord)](https://discordapp.com/channels/905194001349627914/1285268686147424388)
+[![Discord](https://img.shields.io/discord/905194001349627914?logo=discord&logoColor=ffffff&label=Discord)](https://discord.com/invite/hyperledger)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/LFDT-Lockness/hd-wallet/badge)](https://scorecard.dev/viewer/?uri=github.com/LFDT-Lockness/hd-wallet)
 
 # HD wallets derivation
 
@@ -59,7 +60,7 @@ let child_key = derive_using_generic_algo::<Secp256r1, Slip10>(master_key_pair);
 * `serde` adds `serde::{Serialize, Deserialize}` traits implementation to the types in the library
 
 ## Join us in Discord!
-Feel free to reach out to us [in Discord](https://discordapp.com/channels/905194001349627914/1285268686147424388)!
+Feel free to reach out to us [in Discord](https://discord.com/invite/hyperledger)!
 
 [slip10-spec]: https://github.com/satoshilabs/slips/blob/master/slip-0010.md
 [bip32-spec]: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
