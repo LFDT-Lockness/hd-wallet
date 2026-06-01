@@ -22,7 +22,7 @@ serde = { version = "1", default-features = false, features = ["derive"], option
 hex = "0.4"
 hex-literal = "0.4"
 rand = "0.8"
-rug = "1.26"
+rug = "1.30"
 
 generic-ec = { version = "0.5", default-features = false, features = ["curve-stark"] }
 
