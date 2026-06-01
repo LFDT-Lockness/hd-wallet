@@ -20,7 +20,7 @@ serde = { version = "1", default-features = false, features = ["derive"], option
 
 [dev-dependencies]
 hex = "0.4"
-hex-literal = "0.4"
+hex-literal = "1.1"
 rand = "0.8"
 rug = "1.26"
 

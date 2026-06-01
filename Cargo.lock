@@ -356,7 +356,7 @@ dependencies = [
  "generic-array",
  "generic-ec",
  "hex",
- "hex-literal 0.4.1",
+ "hex-literal 1.1.0",
  "hmac",
  "rand",
  "rug",
@@ -379,9 +379,9 @@ checksum = "7ebdb29d2ea9ed0083cd8cece49bbd968021bd99b0849edb4a9a7ee0fdf6a4e0"
 
 [[package]]
 name = "hex-literal"
-version = "0.4.1"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fe2267d4ed49bc07b63801559be28c718ea06c4738b7a03c94df7386d2cde46"
+checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 
 [[package]]
 name = "hmac"
