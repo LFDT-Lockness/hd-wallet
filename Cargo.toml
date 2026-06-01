@@ -21,7 +21,7 @@ serde = { version = "1", default-features = false, features = ["derive"], option
 [dev-dependencies]
 hex = "0.4"
 hex-literal = "0.4"
-rand = "0.8"
+rand = "0.10"
 rug = "1.26"
 
 generic-ec = { version = "0.5", default-features = false, features = ["curve-stark"] }
