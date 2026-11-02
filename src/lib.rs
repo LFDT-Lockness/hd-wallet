@@ -657,6 +657,83 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
         }
     }
 
+    /// Derives a shift (child extended public key + additive shift for private
+    /// key) with specified derivation path
+    ///
+    /// Derivation path is a fallible iterator that yields child indexes. If iterator
+    /// yields an error, it's propagated to the caller.
+    ///
+    /// Returns:
+    /// * `Ok(child_shift)` if derivation was successful
+    /// * `Err(index_err)` if path contained `Err(index_err)`
+    ///
+    /// ### Example
+    /// Parse a path from the string and derive a child without extra allocations:
+    /// ```rust
+    /// use hd_wallet::HdWallet;
+    /// # let seed = b"16-64 bytes of high entropy".as_slice();
+    /// # let master_key = hd_wallet::slip10::derive_master_key::<hd_wallet::curves::Secp256k1>(seed)?;
+    /// # let master_public_key = hd_wallet::ExtendedPublicKey::from(&master_key);
+    ///
+    /// let path = "1/10/2";
+    /// let child_indexes = path.split('/').map(str::parse);
+    /// let child = hd_wallet::Slip10::try_derive_shift_with_path_from_epub(
+    ///     &master_public_key,
+    ///     child_indexes,
+    /// )?;
+    /// let child_key = &master_key.secret_key + child.shift;
+    /// # Ok::<_, Box<dyn std::error::Error>>(())
+    /// ```
+    fn try_derive_shift_with_path_from_epub<Err>(
+        parent_public_key: &ExtendedPublicKey<E>,
+        path: impl IntoIterator<Item = Result<NonHardenedIndex, Err>>,
+    ) -> Result<DerivedShift<E>, Err> {
+        let init = DerivedShift {
+            shift: Scalar::zero(),
+            child_public_key: *parent_public_key,
+        };
+        path.into_iter().try_fold(init, |prev, child_index| {
+            let step = Self::derive_public_shift(&prev.child_public_key, child_index?);
+            Ok(DerivedShift {
+                shift: prev.shift + step.shift,
+                ..step
+            })
+        })
+    }
+
+    /// Derives a shift (child extended public key + additive shift for private
+    /// key) with specified derivation path
+    ///
+    /// Derivation path is an iterator that yields child indexes.
+    ///
+    /// If derivation path is empty, `parent_public_key` is returned
+    ///
+    /// ### Example
+    /// Derive a child key with path m/1/10
+    /// ```rust
+    /// use hd_wallet::HdWallet;
+    /// # let seed = b"16-64 bytes of high entropy".as_slice();
+    /// # let master_key = hd_wallet::slip10::derive_master_key::<hd_wallet::curves::Secp256k1>(seed)?;
+    /// # let master_public_key = hd_wallet::ExtendedPublicKey::from(&master_key);
+    ///
+    /// let child = hd_wallet::Slip10::derive_shift_with_path_from_epub(
+    ///     &master_public_key,
+    ///     [1.try_into()?, 10.try_into()?],
+    /// );
+    /// let child_key = &master_key.secret_key + child.shift;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    fn derive_shift_with_path_from_epub(
+        parent_public_key: &ExtendedPublicKey<E>,
+        path: impl IntoIterator<Item = NonHardenedIndex>,
+    ) -> DerivedShift<E> {
+        Self::try_derive_shift_with_path_from_epub(
+            parent_public_key,
+            path.into_iter().map(Ok::<_, core::convert::Infallible>),
+        )
+        .unwrap_or_else(|e| match e {})
+    }
+
     /// Derives a child key pair with specified derivation path from parent key pair
     ///
     /// Derivation path is a fallible iterator that yields child indexes. If iterator
@@ -686,11 +763,10 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
         parent_key: &ExtendedKeyPair<E>,
         path: impl IntoIterator<Item = Result<impl Into<ChildIndex>, Err>>,
     ) -> Result<ExtendedKeyPair<E>, Err> {
-        let mut derived_key = parent_key.clone();
-        for child_index in path {
-            derived_key = Self::derive_child_key_pair(&derived_key, child_index?);
-        }
-        Ok(derived_key)
+        path.into_iter()
+            .try_fold(parent_key.clone(), |prev, child_index| {
+                Ok(Self::derive_child_key_pair(&prev, child_index?))
+            })
     }
 
     /// Derives a child key pair with specified derivation path from parent key pair
@@ -717,14 +793,11 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
         parent_key: &ExtendedKeyPair<E>,
         path: impl IntoIterator<Item = impl Into<ChildIndex>>,
     ) -> ExtendedKeyPair<E> {
-        let result = Self::try_derive_child_key_pair_with_path(
+        Self::try_derive_child_key_pair_with_path(
             parent_key,
             path.into_iter().map(Ok::<_, core::convert::Infallible>),
-        );
-        match result {
-            Ok(key) => key,
-            Err(err) => match err {},
-        }
+        )
+        .unwrap_or_else(|e| match e {})
     }
 
     /// Derives a child public key with specified derivation path
@@ -756,11 +829,7 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
         parent_public_key: &ExtendedPublicKey<E>,
         path: impl IntoIterator<Item = Result<NonHardenedIndex, Err>>,
     ) -> Result<ExtendedPublicKey<E>, Err> {
-        let mut derived_key = *parent_public_key;
-        for child_index in path {
-            derived_key = Self::derive_child_public_key(&derived_key, child_index?);
-        }
-        Ok(derived_key)
+        Ok(Self::try_derive_shift_with_path_from_epub(parent_public_key, path)?.child_public_key)
     }
 
     /// Derives a child public key with specified derivation path
@@ -787,14 +856,7 @@ pub trait HdWallet<E: Curve>: DeriveShift<E> {
         parent_public_key: &ExtendedPublicKey<E>,
         path: impl IntoIterator<Item = NonHardenedIndex>,
     ) -> ExtendedPublicKey<E> {
-        let result = Self::try_derive_child_public_key_with_path(
-            parent_public_key,
-            path.into_iter().map(Ok::<_, core::convert::Infallible>),
-        );
-        match result {
-            Ok(key) => key,
-            Err(err) => match err {},
-        }
+        Self::derive_shift_with_path_from_epub(parent_public_key, path).child_public_key
     }
 }
 
