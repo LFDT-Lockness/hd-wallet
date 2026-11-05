@@ -187,6 +187,15 @@ fn test_vectors() {
                 &ekey,
                 derivation.path.iter().copied(),
             );
+            // Some test vectors are hardened, so this is not always defined
+            let child = hd_wallet::Stark::try_derive_shift_with_path_from_epub(
+                ekey.public_key(),
+                derivation
+                    .path
+                    .iter()
+                    .copied()
+                    .map(hd_wallet::NonHardenedIndex::try_from),
+            );
 
             assert_eq!(
                 hex::encode(child_key.secret_key().secret_key.as_ref().to_be_bytes()),
@@ -200,6 +209,14 @@ fn test_vectors() {
                 hex::encode(child_key.chain_code()),
                 hex::encode(derivation.expected_chain_code)
             );
+            if let Ok(child) = child {
+                assert_eq!(
+                    hex::encode(child.child_public_key.public_key.to_bytes(true)),
+                    hex::encode(derivation.expected_public_key),
+                );
+                let child_key_ = &ekey.secret_key().secret_key + child.shift;
+                assert_eq!(&child_key_, child_key.secret_key().secret_key.as_ref())
+            }
         }
     }
 }

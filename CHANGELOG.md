@@ -1,5 +1,10 @@
 # hd-wallet crate changelog
 
+## v0.7.1
+* Add `derive_public_shift_with_path` and `try_derive_public_shift_with_path` [#41]
+
+[#41]: https://github.com/LFDT-Lockness/hd-wallet/pull/41
+
 ## v0.7.0
 * Update `generic-ec` to `v0.5` [#19]
 
